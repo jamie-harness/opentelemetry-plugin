@@ -99,10 +99,11 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     }
 
 
+    private String directory = "./";
     /**
      * OTLP endpoint prefixed by "http://" or "https://"
      */
-    private String endpoint;
+    private String endpoint = "http://otel.example.com:4317";
 
     private String trustedCertificatesPem;
 
@@ -197,6 +198,7 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
         properties.forEach((k, v) -> configurationProperties.put(Objects.toString(k, "#null#"), Objects.toString(v, "#null#")));
 
         return new OpenTelemetryConfiguration(
+            Optional.ofNullable(this.getDirectory()),
             Optional.ofNullable(this.getEndpoint()),
             Optional.ofNullable(this.getTrustedCertificatesPem()),
             Optional.ofNullable(this.getAuthentication()),
@@ -249,6 +251,11 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
         }
     }
 
+
+    @CheckForNull
+    public String getDirectory() {
+        return this.directory;
+    }
     /**
      * Never empty
      */
@@ -258,10 +265,10 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     }
 
     @DataBoundSetter
-    public void setEndpoint(String endpoint) {
-        this.endpoint = sanitizeOtlpEndpoint(endpoint);
+    public void setDirectory(String directory) {
+        this.directory = directory;
         // debug line used to verify the lifecycle (@Initializer) when using JCasC configuration
-        LOGGER.log(Level.FINE, () -> "setEndpoint(" + endpoint + ")");
+        LOGGER.log(Level.FINE, () -> "setDirectory(" + directory + ")");
     }
 
     @NonNull

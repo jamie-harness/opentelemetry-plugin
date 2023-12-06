@@ -42,6 +42,9 @@ import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -333,8 +336,12 @@ public class OtelTraceService {
 
     private void writeToFile(String content, String fileName) {
         fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
+        String directoryPath = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "trace/";
         try {
-            File myObj = new File(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + fileName);
+            Path path = Paths.get(directoryPath);
+            // Create the directory and its parent directories if they do not exist
+            Files.createDirectories(path);
+            File myObj = new File(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "trace/" + fileName);
             if (myObj.createNewFile()) {
                 FileWriter myWriter = new FileWriter(myObj);
                 myWriter.write(content);

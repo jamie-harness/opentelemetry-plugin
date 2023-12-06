@@ -103,7 +103,9 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     /**
      * OTLP endpoint prefixed by "http://" or "https://"
      */
-    private String endpoint = "http://localhost:8088/convert-to-harness";
+    private String endpoint = "http://otel.example.com:4317";
+
+    private String harnessConvertEndpoint = "http://localhost:8088/convert-to-harness";
 
     private String trustedCertificatesPem;
 
@@ -256,6 +258,11 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     public String getDirectory() {
         return this.directory;
     }
+
+    @CheckForNull
+    public String getHarnessConvertEndpoint() {
+        return this.harnessConvertEndpoint;
+    }
     /**
      * Never empty
      */
@@ -267,8 +274,11 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     @DataBoundSetter
     public void setDirectory(String directory) {
         this.directory = directory;
-        // debug line used to verify the lifecycle (@Initializer) when using JCasC configuration
-        LOGGER.log(Level.FINE, () -> "setDirectory(" + directory + ")");
+    }
+
+    @DataBoundSetter
+    public void setHarnessConvertEndpoint(String harnessConvertEndpoint) {
+        this.harnessConvertEndpoint = harnessConvertEndpoint;
     }
 
     @NonNull

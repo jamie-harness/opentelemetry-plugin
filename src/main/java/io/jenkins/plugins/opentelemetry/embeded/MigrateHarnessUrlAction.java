@@ -35,7 +35,7 @@ public class MigrateHarnessUrlAction implements Action {
         res.setContentType("text/html;charset=UTF-8");
 
         // Write the HTML content to the response
-        res.getWriter().write("<html><body>" + sb.toString() + "</body></html>");
+        res.getWriter().write("<html><body><pre>" + sb + "</pre></body></html>");
 
         return null;
     }

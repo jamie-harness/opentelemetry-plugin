@@ -6,7 +6,7 @@
             </f:entry>
 
             <f:advanced>
-                <f:entry title="Output API Endpoint" field="endpoint" description="Placeholder for sending result directly to Harness">
+                <f:entry title="Output API Endpoint" field="harnessConvertEndpoint" description="Endpoint for Harness Convert Service">
                     <f:textbox />
                 </f:entry>
             </f:advanced>

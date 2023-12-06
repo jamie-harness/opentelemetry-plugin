@@ -103,7 +103,7 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     /**
      * OTLP endpoint prefixed by "http://" or "https://"
      */
-    private String endpoint = "http://otel.example.com:4317";
+    private String endpoint = "http://localhost:8088/convert-to-harness";
 
     private String trustedCertificatesPem;
 

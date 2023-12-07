@@ -10,6 +10,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -23,6 +24,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -46,6 +48,7 @@ public class TraceProcessor {
                         if (pipelineMap.has(parentSpanId)) {
                             JSONArray pipelineArray = pipelineMap.getJSONArray(parentSpanId);
                             pipelineArray.put(data);
+                            pipelineMap.put(parentSpanId, sortJsonArray(pipelineArray));
                         } else {
                             JSONArray newArray = new JSONArray();
                             newArray.put(data);
@@ -119,4 +122,35 @@ public class TraceProcessor {
 
     }
 
+
+    public static JSONArray sortJsonArray(JSONArray jsonArray) {
+
+        try {
+            List<Object> list = new ArrayList<>();
+            for (int i = 0; i < jsonArray.length(); i++) {
+                list.add(jsonArray.get(i));
+            }
+
+            Collections.sort(list, (o1, o2) -> {
+                try {
+                    int age1 = ((JSONObject) o1).getJSONObject("attributesMap").getInt("jenkins.pipeline.step.id");
+                    int age2 = ((JSONObject) o2).getJSONObject("attributesMap").getInt("jenkins.pipeline.step.id");
+                    return Integer.compare(age1, age2);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    return 0;
+                }
+            });
+
+            // Step 3: Convert the sorted list back to JSONArray
+            JSONArray sortedJsonArray = new JSONArray(list);
+
+            // Print the sorted JSONArray
+           return sortedJsonArray;
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return jsonArray;
+    }
 }

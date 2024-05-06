@@ -1,0 +1,11 @@
+{
+  "name" : "pipeline1 #46",
+  "parent" : "pipeline1",
+  "type" : "Run Phase Span",
+  "all-info" : "span(name: Phase: Run, spanId: 1b7a7494288e3330, parentSpanId: 5afb6149d2b5f818, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: )",
+  "spanName" : "Phase: Run",
+  "spanId" : "1b7a7494288e3330",
+  "parentSpanId" : "5afb6149d2b5f818",
+  "traceId" : "98d673b2799c3fe7539b4a3a2f40dc52",
+  "attributesMap" : { }
+}

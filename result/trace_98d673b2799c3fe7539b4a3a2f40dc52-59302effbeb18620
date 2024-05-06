@@ -1,0 +1,18 @@
+{
+  "name" : "pipeline1 #46",
+  "parent" : "pipeline1",
+  "type" : "Run Phase Span",
+  "spanName" : "Agent Allocation",
+  "spanId" : "59302effbeb18620",
+  "parentSpanId" : "92eb8730f3541ba7",
+  "traceId" : "98d673b2799c3fe7539b4a3a2f40dc52",
+  "attributesMap" : {
+    "harness-others" : "",
+    "jenkins.pipeline.step.id" : "3",
+    "jenkins.pipeline.step.name" : "agent.allocate",
+    "jenkins.pipeline.step.plugin.name" : "workflow-durable-task-step",
+    "jenkins.pipeline.step.plugin.version" : "1289.v4d3e7b_01546b_",
+    "jenkins.pipeline.step.type" : "node"
+  },
+  "all-info" : "span(name: Agent Allocation, spanId: 59302effbeb18620, parentSpanId: 92eb8730f3541ba7, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: harness-others:;jenkins.pipeline.step.id:3;jenkins.pipeline.step.name:agent.allocate;jenkins.pipeline.step.plugin.name:workflow-durable-task-step;jenkins.pipeline.step.plugin.version:1289.v4d3e7b_01546b_;jenkins.pipeline.step.type:node;)"
+}

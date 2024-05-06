@@ -6,10 +6,15 @@
 package io.jenkins.plugins.opentelemetry.job.jenkins;
 
 import static com.google.common.base.Verify.*;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Iterables;
 import hudson.Extension;
+import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Run;
+import io.jenkins.plugins.opentelemetry.JenkinsOpenTelemetryPluginConfiguration;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
@@ -27,7 +32,13 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -91,7 +102,13 @@ public class GraphListenerAdapterToPipelineListener implements StepListener, Gra
             final Map<String, Object> arguments = ArgumentsAction.getFilteredArguments(node);
             String label = Objects.toString(arguments.get("label"), null);
             fireOnAfterStartNodeStep((StepStartNode) node, label, run);
-        } else {
+        } else if (node instanceof StepNode) {
+            logFlowNodeDetails(node, run);
+//            final Map<String, Object> arguments = ArgumentsAction.getFilteredArguments(node);
+//            String label = Objects.toString(arguments.get("label"), null);
+//            fireOnGeneralNodeStep((StepNode) node, label, run);
+        }
+        else {
             logFlowNodeDetails(node, run);
         }
     }
@@ -134,20 +151,48 @@ public class GraphListenerAdapterToPipelineListener implements StepListener, Gra
     }
 
     private void logFlowNodeDetails(@NonNull FlowNode node, @NonNull WorkflowRun run) {
-        log(Level.FINE, () ->
-        {
-            String message = run.getFullDisplayName() + " - " +
-                    "before " + node.getDisplayFunctionName() + " // " + PipelineNodeUtil.getDisplayName(node) + ", ";
+        String message = run.getFullDisplayName() + " - " +
+            "before " + node.getDisplayFunctionName() + " // " + PipelineNodeUtil.getDisplayName(node) + ",\n";
 
-            if (node instanceof StepNode) {
-                StepNode stepNode = (StepNode) node;
-                StepDescriptor descriptor = stepNode.getDescriptor();
-                message += "descriptor (class:" + descriptor.getClass().getName() + ", " + descriptor.getFunctionName() + "), ";
+        if (node instanceof StepNode) {
+            StepNode stepNode = (StepNode) node;
+            StepDescriptor descriptor = stepNode.getDescriptor();
+            message += "descriptor (class:" + descriptor.getClass().getName() + ", " + descriptor.getFunctionName() + "), \n";
+        }
+        message += node.getAllActions().stream().map(action -> Objects.toString(action.getDisplayName(), action.getClass().toString())).collect(Collectors.joining(", "));
+        message += "///////\n";
+        for (Action action : node.getAllActions()) {
+            if (action instanceof ArgumentsAction) {
+                ArgumentsAction augAction = (ArgumentsAction) action;
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode map = mapper.valueToTree(augAction.getArguments());
+                message += "harness-attribute: " +  map.toPrettyString() + "\n";
             }
-            message += node.getAllActions().stream().map(action -> Objects.toString(action.getDisplayName(), action.getClass().toString())).collect(Collectors.joining(", "));
-            message += ", node.parent: " + Iterables.getFirst(node.getParents(), null);
-            return message;
-        });
+            else {
+                message +="harness-attribute-extra-debug: " + action + "\n";
+            }
+        }
+        message += "///////\n";
+        message += ", node.parent: " + Iterables.getFirst(node.getParents(), null);
+        writeToFile(message, node.getId() + run.getId());
+    }
+
+    private void writeToFile(String content, String fileName) {
+        fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
+        String directoryPath = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "debug/";
+        try {
+            Path path = Paths.get(directoryPath);
+            // Create the directory and its parent directories if they do not exist
+            Files.createDirectories(path);
+            File myObj = new File(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "debug/" + fileName);
+            if (myObj.createNewFile()) {
+                FileWriter myWriter = new FileWriter(myObj);
+                myWriter.write(content);
+                myWriter.close();
+            } else {
+                System.out.println("File already exists.");
+            }
+        } catch (IOException ignore) {}
     }
 
     public void fireOnAfterAtomicStep(@NonNull StepAtomNode stepAtomNode, @NonNull WorkflowRun run) {
@@ -232,6 +277,17 @@ public class GraphListenerAdapterToPipelineListener implements StepListener, Gra
             log(() -> "onAfterStartNodeStep(" + node.getDisplayName() + "): " + pipelineListener.toString());
             try {
                 pipelineListener.onAfterStartNodeStep(node, nodeLabel, run);
+            } catch (RuntimeException e) {
+                LOGGER.log(Level.WARNING, e, () -> "Exception invoking `onAfterStartNodeStep` on " + pipelineListener);
+            }
+        }
+    }
+
+    public void fireOnGeneralNodeStep(@NonNull StepNode node, @NonNull String nodeLabel, @NonNull WorkflowRun run) {
+        for (PipelineListener pipelineListener : PipelineListener.all()) {
+            log(() -> "onAfterStartNodeStep(" + node.getDescriptor() + "): " + pipelineListener.toString());
+            try {
+                pipelineListener.onStepNodeStep(node, nodeLabel, run);
             } catch (RuntimeException e) {
                 LOGGER.log(Level.WARNING, e, () -> "Exception invoking `onAfterStartNodeStep` on " + pipelineListener);
             }

@@ -1,0 +1,23 @@
+{
+  "name" : "pipeline1 #46",
+  "parent" : "pipeline1",
+  "type" : "Run Phase Span",
+  "spanName" : "echo",
+  "spanId" : "0186a3b0d19cb363",
+  "parentSpanId" : "e51d68449497c793",
+  "traceId" : "98d673b2799c3fe7539b4a3a2f40dc52",
+  "attributesMap" : {
+    "ci.pipeline.run.user" : "SYSTEM",
+    "harness-attribute" : "{\n  \"message\" : \"Hello World\"\n}",
+    "harness-others" : "",
+    "jenkins.pipeline.step.id" : "7",
+    "jenkins.pipeline.step.name" : "Print Message",
+    "jenkins.pipeline.step.plugin.name" : "workflow-basic-steps",
+    "jenkins.pipeline.step.plugin.version" : "1042.ve7b_140c4a_e0c",
+    "jenkins.pipeline.step.type" : "echo"
+  },
+  "parameterMap" : {
+    "message" : "Hello World"
+  },
+  "all-info" : "span(name: echo, spanId: 0186a3b0d19cb363, parentSpanId: e51d68449497c793, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: ci.pipeline.run.user:SYSTEM;harness-attribute:{\n  \"message\" : \"Hello World\"\n};harness-others:;jenkins.pipeline.step.id:7;jenkins.pipeline.step.name:Print Message;jenkins.pipeline.step.plugin.name:workflow-basic-steps;jenkins.pipeline.step.plugin.version:1042.ve7b_140c4a_e0c;jenkins.pipeline.step.type:echo;)"
+}

@@ -1,0 +1,7 @@
+{
+  "name" : "pipeline1 #46",
+  "parentSpanId" : "0000000000000000",
+  "traceId" : "98d673b2799c3fe7539b4a3a2f40dc52",
+  "spanName" : "BUILD pipeline1",
+  "spanId" : "5afb6149d2b5f818"
+}

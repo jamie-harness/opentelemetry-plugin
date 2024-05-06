@@ -48,6 +48,7 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.StepListener;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graph.StepNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.*;
 
@@ -138,6 +139,29 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
     public void onAfterStartNodeStep(@NonNull StepStartNode stepStartNode, @Nullable String nodeLabel, @NonNull WorkflowRun run) {
         // end the JenkinsOtelSemanticAttributes.AGENT_ALLOCATE span
         endCurrentSpan(stepStartNode, run);
+    }
+
+    @Override
+    public void onStepNodeStep(@NonNull StepNode stepNode, @Nullable String nodeLabel, @NonNull WorkflowRun run) {
+        FlowNode stepStartNode = (FlowNode) stepNode;
+        try (Scope ignored = setupContext(run, stepStartNode)) {
+            verifyNotNull(ignored, "%s - No span found for node %s", run, stepStartNode);
+            String spanStageName = "Stage: " + nodeLabel;
+
+            String stepType = getStepType(stepStartNode, stepNode.getDescriptor(),"stage");
+//            JenkinsOpenTelemetryPluginConfiguration.StepPlugin stepPlugin = JenkinsOpenTelemetryPluginConfiguration.get().findStepPluginOrDefault(stepType, stepStartNode);
+
+            SpanBuilder spanBuilder = getTracer().spanBuilder(spanStageName)
+                .setParent(Context.current())
+                .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType);
+
+
+            populateHarnessData(spanBuilder, stepStartNode.getAllActions(), stepNode.getDescriptor().getKlass().getFields());
+            Span stageSpan = spanBuilder.startSpan();
+            LOGGER.log(Level.FINE, () -> run.getFullDisplayName() + " - > stage(" + nodeLabel + ") - begin " + OtelUtils.toDebugString(stageSpan));
+
+            getTracerService().putSpan(run, stageSpan, stepStartNode);
+        }
     }
 
     @Override
@@ -443,6 +467,9 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode map = mapper.valueToTree(augAction.getArguments());
                 spanBuilder.setAttribute("harness-attribute", map.toPrettyString());
+            }
+            else {
+                spanBuilder.setAttribute("harness-attribute-extra-pip: " + action, action.toString());
             }
         }
 

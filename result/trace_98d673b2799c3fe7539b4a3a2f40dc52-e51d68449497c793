@@ -1,0 +1,18 @@
+{
+  "name" : "pipeline1 #46",
+  "parent" : "pipeline1",
+  "type" : "Run Phase Span",
+  "spanName" : "Stage: Hello",
+  "spanId" : "e51d68449497c793",
+  "parentSpanId" : "92eb8730f3541ba7",
+  "traceId" : "98d673b2799c3fe7539b4a3a2f40dc52",
+  "attributesMap" : {
+    "harness-others" : "-name-field org.jenkinsci.plugins.workflow.support.steps.StageStep name-org.jenkinsci.plugins.workflow.support.steps.StageStep.name-class java.lang.String-concurrency-field org.jenkinsci.plugins.workflow.support.steps.StageStep concurrency-org.jenkinsci.plugins.workflow.support.steps.StageStep.concurrency-class java.lang.Integer",
+    "jenkins.pipeline.step.id" : "6",
+    "jenkins.pipeline.step.name" : "Hello",
+    "jenkins.pipeline.step.plugin.name" : "pipeline-stage-step",
+    "jenkins.pipeline.step.plugin.version" : "305.ve96d0205c1c6",
+    "jenkins.pipeline.step.type" : "stage"
+  },
+  "all-info" : "span(name: Stage: Hello, spanId: e51d68449497c793, parentSpanId: 92eb8730f3541ba7, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: harness-others:-name-field org.jenkinsci.plugins.workflow.support.steps.StageStep name-org.jenkinsci.plugins.workflow.support.steps.StageStep.name-class java.lang.String-concurrency-field org.jenkinsci.plugins.workflow.support.steps.StageStep concurrency-org.jenkinsci.plugins.workflow.support.steps.StageStep.concurrency-class java.lang.Integer;jenkins.pipeline.step.id:6;jenkins.pipeline.step.name:Hello;jenkins.pipeline.step.plugin.name:pipeline-stage-step;jenkins.pipeline.step.plugin.version:305.ve96d0205c1c6;jenkins.pipeline.step.type:stage;)"
+}

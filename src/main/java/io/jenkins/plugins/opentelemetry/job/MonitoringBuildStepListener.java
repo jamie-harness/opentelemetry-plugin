@@ -166,6 +166,8 @@ public class MonitoringBuildStepListener extends BuildStepListener implements Ot
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode map = mapper.valueToTree(augAction.getArguments());
                 spanBuilder.setAttribute("harness-attribute", map.toPrettyString());
+            } else {
+                spanBuilder.setAttribute("harness-attribute-extra-build-step: " + action, action.toString());
             }
         }
 

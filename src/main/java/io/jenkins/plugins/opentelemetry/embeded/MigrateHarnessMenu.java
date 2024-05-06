@@ -5,8 +5,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.ModelObject;
+import hudson.util.FormValidation;
+import io.jenkins.plugins.opentelemetry.MigrateHarnessUrlChildAction;
 import jenkins.model.TransientActionFactory;
+import org.kohsuke.stapler.QueryParameter;
 
+import javax.servlet.ServletException;
+import javax.ws.rs.POST;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -20,12 +26,12 @@ public class MigrateHarnessMenu extends TransientActionFactory<ModelObject> {
     @NonNull
     @Override
     public Collection<? extends Action> createFor(@NonNull ModelObject target) {
-        MigrateHarnessUrlAction blueOceanUrlObject = new MigrateHarnessUrlAction();
+        MigrateHarnessUrlChildAction blueOceanUrlObject = new MigrateHarnessUrlChildAction(target);
         return Collections.singleton(blueOceanUrlObject);
     }
 
     @Override
     public Class<? extends Action> actionType() {
-        return MigrateHarnessUrlAction.class;
+        return MigrateHarnessUrlChildAction.class;
     }
 }

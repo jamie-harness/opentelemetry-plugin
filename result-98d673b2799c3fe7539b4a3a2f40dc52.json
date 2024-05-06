@@ -1,0 +1,126 @@
+{
+  "name": "pipeline1 #46",
+  "parentSpanId": "0000000000000000",
+  "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+  "spanName": "BUILD pipeline1",
+  "spanId": "5afb6149d2b5f818",
+  "children": [
+    {
+      "name": "pipeline1 #46",
+      "parent": "pipeline1",
+      "type": "Run Phase Span",
+      "all-info": "span(name: Phase: Finalise, spanId: 4a506cd3b07366a5, parentSpanId: 5afb6149d2b5f818, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: )",
+      "spanName": "Phase: Finalise",
+      "spanId": "4a506cd3b07366a5",
+      "parentSpanId": "5afb6149d2b5f818",
+      "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+      "attributesMap": {}
+    },
+    {
+      "name": "pipeline1 #46",
+      "parent": "pipeline1",
+      "type": "Run Phase Span",
+      "all-info": "span(name: Phase: Start, spanId: 7db93c9559bc0358, parentSpanId: 5afb6149d2b5f818, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: )",
+      "spanName": "Phase: Start",
+      "spanId": "7db93c9559bc0358",
+      "parentSpanId": "5afb6149d2b5f818",
+      "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+      "attributesMap": {}
+    },
+    {
+      "name": "pipeline1 #46",
+      "parent": "pipeline1",
+      "type": "Run Phase Span",
+      "all-info": "span(name: Phase: Run, spanId: 1b7a7494288e3330, parentSpanId: 5afb6149d2b5f818, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: )",
+      "spanName": "Phase: Run",
+      "spanId": "1b7a7494288e3330",
+      "parentSpanId": "5afb6149d2b5f818",
+      "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+      "attributesMap": {},
+      "children": [
+        {
+          "name": "pipeline1 #46",
+          "parent": "pipeline1",
+          "type": "Run Phase Span",
+          "spanName": "Agent",
+          "spanId": "92eb8730f3541ba7",
+          "parentSpanId": "1b7a7494288e3330",
+          "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+          "attributesMap": {
+            "harness-others": "",
+            "jenkins.credentials.id": "[org.jenkinsci.plugins.workflow.support.actions.LogStorageAction@7311e92f, org.jenkinsci.plugins.workflow.actions.TimingAction@374d3650, com.cloudbees.workflow.rest.endpoints.FlowNodeAPI@391a89d3, io.jenkins.blueocean.service.embedded.BlueOceanUrlAction@1081cf53]",
+            "jenkins.pipeline.step.id": "3",
+            "jenkins.pipeline.step.name": "agent",
+            "jenkins.pipeline.step.plugin.name": "workflow-durable-task-step",
+            "jenkins.pipeline.step.plugin.version": "1289.v4d3e7b_01546b_",
+            "jenkins.pipeline.step.type": "node"
+          },
+          "all-info": "span(name: Agent, spanId: 92eb8730f3541ba7, parentSpanId: 1b7a7494288e3330, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: harness-others:;jenkins.credentials.id:[org.jenkinsci.plugins.workflow.support.actions.LogStorageAction@7311e92f, org.jenkinsci.plugins.workflow.actions.TimingAction@374d3650, com.cloudbees.workflow.rest.endpoints.FlowNodeAPI@391a89d3, io.jenkins.blueocean.service.embedded.BlueOceanUrlAction@1081cf53];jenkins.pipeline.step.id:3;jenkins.pipeline.step.name:agent;jenkins.pipeline.step.plugin.name:workflow-durable-task-step;jenkins.pipeline.step.plugin.version:1289.v4d3e7b_01546b_;jenkins.pipeline.step.type:node;)",
+          "children": [
+            {
+              "name": "pipeline1 #46",
+              "parent": "pipeline1",
+              "type": "Run Phase Span",
+              "spanName": "Agent Allocation",
+              "spanId": "59302effbeb18620",
+              "parentSpanId": "92eb8730f3541ba7",
+              "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+              "attributesMap": {
+                "harness-others": "",
+                "jenkins.pipeline.step.id": "3",
+                "jenkins.pipeline.step.name": "agent.allocate",
+                "jenkins.pipeline.step.plugin.name": "workflow-durable-task-step",
+                "jenkins.pipeline.step.plugin.version": "1289.v4d3e7b_01546b_",
+                "jenkins.pipeline.step.type": "node"
+              },
+              "all-info": "span(name: Agent Allocation, spanId: 59302effbeb18620, parentSpanId: 92eb8730f3541ba7, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: harness-others:;jenkins.pipeline.step.id:3;jenkins.pipeline.step.name:agent.allocate;jenkins.pipeline.step.plugin.name:workflow-durable-task-step;jenkins.pipeline.step.plugin.version:1289.v4d3e7b_01546b_;jenkins.pipeline.step.type:node;)"
+            },
+            {
+              "name": "pipeline1 #46",
+              "parent": "pipeline1",
+              "type": "Run Phase Span",
+              "spanName": "Stage: Hello",
+              "spanId": "e51d68449497c793",
+              "parentSpanId": "92eb8730f3541ba7",
+              "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+              "attributesMap": {
+                "harness-others": "-name-field org.jenkinsci.plugins.workflow.support.steps.StageStep name-org.jenkinsci.plugins.workflow.support.steps.StageStep.name-class java.lang.String-concurrency-field org.jenkinsci.plugins.workflow.support.steps.StageStep concurrency-org.jenkinsci.plugins.workflow.support.steps.StageStep.concurrency-class java.lang.Integer",
+                "jenkins.pipeline.step.id": "6",
+                "jenkins.pipeline.step.name": "Hello",
+                "jenkins.pipeline.step.plugin.name": "pipeline-stage-step",
+                "jenkins.pipeline.step.plugin.version": "305.ve96d0205c1c6",
+                "jenkins.pipeline.step.type": "stage"
+              },
+              "all-info": "span(name: Stage: Hello, spanId: e51d68449497c793, parentSpanId: 92eb8730f3541ba7, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: harness-others:-name-field org.jenkinsci.plugins.workflow.support.steps.StageStep name-org.jenkinsci.plugins.workflow.support.steps.StageStep.name-class java.lang.String-concurrency-field org.jenkinsci.plugins.workflow.support.steps.StageStep concurrency-org.jenkinsci.plugins.workflow.support.steps.StageStep.concurrency-class java.lang.Integer;jenkins.pipeline.step.id:6;jenkins.pipeline.step.name:Hello;jenkins.pipeline.step.plugin.name:pipeline-stage-step;jenkins.pipeline.step.plugin.version:305.ve96d0205c1c6;jenkins.pipeline.step.type:stage;)",
+              "children": [
+                {
+                  "name": "pipeline1 #46",
+                  "parent": "pipeline1",
+                  "type": "Run Phase Span",
+                  "spanName": "echo",
+                  "spanId": "0186a3b0d19cb363",
+                  "parentSpanId": "e51d68449497c793",
+                  "traceId": "98d673b2799c3fe7539b4a3a2f40dc52",
+                  "attributesMap": {
+                    "ci.pipeline.run.user": "SYSTEM",
+                    "harness-attribute": "{\n  \"message\" : \"Hello World\"\n}",
+                    "harness-others": "",
+                    "jenkins.pipeline.step.id": "7",
+                    "jenkins.pipeline.step.name": "Print Message",
+                    "jenkins.pipeline.step.plugin.name": "workflow-basic-steps",
+                    "jenkins.pipeline.step.plugin.version": "1042.ve7b_140c4a_e0c",
+                    "jenkins.pipeline.step.type": "echo"
+                  },
+                  "parameterMap": {
+                    "message": "Hello World"
+                  },
+                  "all-info": "span(name: echo, spanId: 0186a3b0d19cb363, parentSpanId: e51d68449497c793, traceId: 98d673b2799c3fe7539b4a3a2f40dc52, attr: ci.pipeline.run.user:SYSTEM;harness-attribute:{\n  \"message\" : \"Hello World\"\n};harness-others:;jenkins.pipeline.step.id:7;jenkins.pipeline.step.name:Print Message;jenkins.pipeline.step.plugin.name:workflow-basic-steps;jenkins.pipeline.step.plugin.version:1042.ve7b_140c4a_e0c;jenkins.pipeline.step.type:echo;)"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

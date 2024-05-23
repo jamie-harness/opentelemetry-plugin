@@ -27,16 +27,20 @@ import javax.ws.rs.POST;
 import java.io.IOException;
 
 @Extension
-public class MigrateHarnessUrlChildAction implements Action, Describable<MigrateHarnessUrlChildAction> {
+public class MigrateHarnessUrlChildAction implements RootAction, Describable<MigrateHarnessUrlChildAction> {
 
     private final ModelObject run;
+
+    private String traceFolder;
 
 
     public MigrateHarnessUrlChildAction() {
         this.run = null;
+        this.traceFolder = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() +  "trace/";
     }
     public MigrateHarnessUrlChildAction(ModelObject run) {
         this.run = run;
+        this.traceFolder = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() +  "trace/";
     }
 
     @Override
@@ -82,7 +86,12 @@ public class MigrateHarnessUrlChildAction implements Action, Describable<Migrate
 //
 //        return null;
 //    }
+
+    public String getTraceFolder() {
+        return traceFolder;
+    }
     public ModelObject getRun() {
+        this.traceFolder = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() +  "trace/";
         return run;
     }
     @SuppressWarnings("unchecked")
@@ -92,6 +101,7 @@ public class MigrateHarnessUrlChildAction implements Action, Describable<Migrate
         if (jenkins == null) {
             throw new IllegalStateException("Jenkins has not been started");
         }
+        this.traceFolder = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() +  "trace/";
         return jenkins.getDescriptorOrDie(getClass());
     }
 

@@ -13,7 +13,7 @@
         <relativePath />
     </parent>
     <groupId>io.jenkins.plugins</groupId>
-    <artifactId>opentelemetry</artifactId>
+    <artifactId>harnessmigration</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <properties>
@@ -33,11 +33,8 @@
         <elasticstack.version>8.10.4</elasticstack.version>
         <error-prone.version>2.23.0</error-prone.version>
     </properties>
-    <name>OpenTelemetry Plugin</name>
-    <description>Monitor, troubleshoot and observe Jenkins with OpenTelemetry.
-        Monitor Jenkins with dashboards and alerts on critical health metrics.
-        Troubleshoot Jenkins problems using traces of job executions and HTTP requests.
-        Store pipeline build logs in an Observability backend like Elastic to improve Jenkins reliability and scalability while improving the traceability of builds.</description>
+    <name>Jenkins Migration Plugin</name>
+    <description>Plugin to help migrate from Jenkins to Harness</description>
     <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
     <dependencyManagement>

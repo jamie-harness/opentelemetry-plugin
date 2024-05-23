@@ -1,12 +1,12 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project" >
     <st:bind var="myAction" value="${it}"/>
-    <st:bind var="backend" value="${it.descriptor}"/>
     <l:layout norefresh="true" title="Harness" >
         <l:side-panel>
             <st:include page="sidepanel.jelly" it="${it.run}" optional="true" />
         </l:side-panel>
         <l:main-panel>
+            <p>Trace folder: ${it.traceFolder}</p>
 <!--            <f:entry title="Harness Account ID" field="harnessAccount">-->
 <!--                <f:textbox default="9UuUfLwaQ-6ZowvbG7qtLQ"/>-->
 <!--            </f:entry>-->
@@ -19,7 +19,10 @@
 <!--            <f:entry title="Harness API Token" field="harnessProject">-->
 <!--                <f:password/>-->
 <!--            </f:entry>-->
-            <script src="${rootURL}/plugin/opentelemetry/js/harnessInner.js"/>
+            <script type="text/javascript">
+                var traceFolder = "${it.traceFolder}";
+            </script>
+            <script src="${rootURL}/plugin/harnessmigration/js/harnessInner.js"/>
 <!--            <button onclick="callJavaMethod()">Upgrade</button>-->
 <!--            <button onclick="callJavaMethod2()">Upgrade Java</button>-->
 <!--            <button onclick="callJavaMethod3()">Upgrade Java 3</button>-->

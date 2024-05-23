@@ -26,8 +26,8 @@ public class MigrateHarnessMenu extends TransientActionFactory<ModelObject> {
     @NonNull
     @Override
     public Collection<? extends Action> createFor(@NonNull ModelObject target) {
-        MigrateHarnessUrlChildAction blueOceanUrlObject = new MigrateHarnessUrlChildAction(target);
-        return Collections.singleton(blueOceanUrlObject);
+        MigrateHarnessUrlChildAction migrateHarnessUrlChildAction = new MigrateHarnessUrlChildAction(target);
+        return Collections.singleton(migrateHarnessUrlChildAction);
     }
 
     @Override

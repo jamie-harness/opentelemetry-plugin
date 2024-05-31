@@ -45,7 +45,7 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
 
     @Override
     public String getIconFileName() {
-        return "/plugin/opentelemetry/images/48x48/harness-logo.png";
+        return "/plugin/harnessmigration/images/48x48/harness-logo.png";
     }
 
     @Override

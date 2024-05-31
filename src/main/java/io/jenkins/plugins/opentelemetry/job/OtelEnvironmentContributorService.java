@@ -55,12 +55,12 @@ public class OtelEnvironmentContributorService {
             LOGGER.log(Level.INFO, () -> "MonitoringAction NOT found on run " + run);
         } else {
             // Add visualization link as environment variables to provide visualization links in notifications (to GitHub, slack messages...)
-            for (MonitoringAction.ObservabilityBackendLink link : monitoringAction.getLinks()) {
-                // Default backend link got an empty environment variable.
-                if (link.getEnvironmentVariableName() != null) {
-                    envs.put(link.getEnvironmentVariableName(), link.getUrl());
-                }
-            }
+//            for (MonitoringAction.ObservabilityBackendLink link : monitoringAction.getLinks()) {
+//                // Default backend link got an empty environment variable.
+//                if (link.getEnvironmentVariableName() != null) {
+//                    envs.put(link.getEnvironmentVariableName(), link.getUrl());
+//                }
+//            }
         }
 
         if (this.jenkinsOpenTelemetryPluginConfiguration.isExportOtelConfigurationAsEnvironmentVariables()) {

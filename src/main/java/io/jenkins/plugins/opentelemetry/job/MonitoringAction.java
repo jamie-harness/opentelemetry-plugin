@@ -72,7 +72,7 @@ public class MonitoringAction extends AbstractMonitoringAction implements Action
 
     @Override
     public String getDisplayName() {
-        return "OpenTelemetry";
+        return null;
     }
 
     @Override
@@ -127,35 +127,8 @@ public class MonitoringAction extends AbstractMonitoringAction implements Action
                     .orElse(Collections.emptyMap()));
     }
 
-    @NonNull
     public List<ObservabilityBackendLink> getLinks() {
-        List<ObservabilityBackend> tracingCapableBackends = JenkinsOpenTelemetryPluginConfiguration.get().getObservabilityBackends()
-            .stream()
-            .filter(backend -> backend.getTraceVisualisationUrlTemplate() != null)
-            .collect(Collectors.toList());
-
-        if (tracingCapableBackends.isEmpty()) {
-            return Collections.singletonList(new ObservabilityBackendLink(
-                "   Please define an OpenTelemetry Visualisation URL of pipelines in Jenkins configuration",
-                Jenkins.get().getRootUrl() + "/configure",
-                "icon-gear2",
-                null));
-        }
-        Map<String, Object> binding = new HashMap<>();
-        binding.put(ObservabilityBackend.TemplateBindings.SERVICE_NAME, Objects.requireNonNull(JenkinsOpenTelemetryPluginConfiguration.get().getServiceName()));
-        binding.put(ObservabilityBackend.TemplateBindings.SERVICE_NAMESPACE, JenkinsOpenTelemetryPluginConfiguration.get().getServiceNamespace());
-        binding.put(ObservabilityBackend.TemplateBindings.ROOT_SPAN_NAME, this.rootSpanName == null ? null : OtelUtils.urlEncode(this.rootSpanName));
-        binding.put(ObservabilityBackend.TemplateBindings.TRACE_ID, this.getTraceId());
-        binding.put(ObservabilityBackend.TemplateBindings.SPAN_ID, this.getSpanId());
-        binding.put(ObservabilityBackend.TemplateBindings.START_TIME, Instant.ofEpochMilli(run.getStartTimeInMillis()));
-
-        return tracingCapableBackends.stream().map(backend ->
-            new ObservabilityBackendLink(
-                "View pipeline with " + backend.getName(),
-                backend.getTraceVisualisationUrl(binding),
-                backend.getIconPath(),
-                backend.getEnvVariableName())
-        ).collect(Collectors.toList());
+        return Collections.emptyList();
     }
 
     public static class ObservabilityBackendLink {

@@ -32,7 +32,7 @@ public class TraceProcessor {
     public static final String ROOT_ID = "0000000000000000";
 
     public static List<String> convertTraceToJson() throws IOException {
-        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() +  "trace/");
+        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(), "trace/");
         JSONObject pipelineMap = new JSONObject();
 
         Files.walkFileTree(rootPath, EnumSet.noneOf(FileVisitOption.class), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
@@ -84,7 +84,7 @@ public class TraceProcessor {
         for (int i = 0; i < resultObject.length(); i++) {
             JSONObject result = resultObject.getJSONObject(i);
             String traceId = result.getString("traceId");
-            String fileName = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "result-" + traceId + ".json";
+            String fileName = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(), "trace", "result-" + traceId + ".json").toString();
             filesToConvert.add(fileName);
             try {
                 Files.write(Paths.get(fileName), result.toString(2).getBytes());

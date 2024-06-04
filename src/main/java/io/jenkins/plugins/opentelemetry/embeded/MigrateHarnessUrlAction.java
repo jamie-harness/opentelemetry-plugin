@@ -13,7 +13,7 @@ import java.util.List;
 public class MigrateHarnessUrlAction implements Action {
     @Override
     public String getIconFileName() {
-        return "/plugin/opentelemetry/images/48x48/harness-logo.png";
+        return "/plugin/harnessmigration/images/48x48/harness-logo.png";
     }
 
     @Override

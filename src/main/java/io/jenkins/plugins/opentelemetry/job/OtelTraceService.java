@@ -336,12 +336,12 @@ public class OtelTraceService {
 
     private void writeToFile(String content, String fileName) {
         fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
-        String directoryPath = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "trace/";
+        String directoryPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"trace/").toString();
         try {
             Path path = Paths.get(directoryPath);
             // Create the directory and its parent directories if they do not exist
             Files.createDirectories(path);
-            File myObj = new File(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "trace/" + fileName);
+            File myObj = new File(Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() ,"trace", fileName).toUri());
             if (myObj.createNewFile()) {
                 FileWriter myWriter = new FileWriter(myObj);
                 myWriter.write(content);

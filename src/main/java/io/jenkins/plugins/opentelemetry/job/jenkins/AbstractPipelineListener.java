@@ -9,6 +9,7 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graph.StepNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -32,6 +33,11 @@ public class AbstractPipelineListener implements PipelineListener {
 
     @Override
     public void onAfterStartNodeStep(@NonNull StepStartNode stepStartNode, @Nullable String nodeLabel, @NonNull WorkflowRun run) {
+
+    }
+
+    @Override
+    public void onStepNodeStep(@NonNull StepNode stepStartNode, @Nullable String nodeLabel, @NonNull WorkflowRun run) {
 
     }
 

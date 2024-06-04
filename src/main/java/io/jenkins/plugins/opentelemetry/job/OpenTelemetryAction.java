@@ -16,11 +16,11 @@ public class OpenTelemetryAction implements Action {
 
     @Override
     public String getDisplayName() {
-        return "OpenTelemetry";
+        return "MigrateToHarness";
     }
 
     @Override
     public String getUrlName() {
-        return "opentelemetry";
+        return "migratetoharness";
     }
 }

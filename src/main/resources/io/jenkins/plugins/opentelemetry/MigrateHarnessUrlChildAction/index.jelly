@@ -3,7 +3,7 @@
     <st:bind var="myAction" value="${it}"/>
     <l:layout norefresh="true" title="Harness" >
         <l:side-panel>
-            <st:include page="sidepanel.jelly" it="${it.run}" optional="true" />
+            <st:include page="sidepanel.jelly" it="${app}" optional="true" />
         </l:side-panel>
         <l:main-panel>
             <p>Trace folder: ${it.traceFolder}</p>

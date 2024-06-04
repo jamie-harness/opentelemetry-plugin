@@ -4,11 +4,5 @@
             <f:entry title="Output directory" field="directory" description="Target directory to output Harness Pipeline yaml">
                 <f:textbox />
             </f:entry>
-
-            <f:advanced>
-                <f:entry title="Output API Endpoint" field="harnessConvertEndpoint" description="Endpoint for Harness Convert Service">
-                    <f:textbox />
-                </f:entry>
-            </f:advanced>
     </f:section>
 </j:jelly>

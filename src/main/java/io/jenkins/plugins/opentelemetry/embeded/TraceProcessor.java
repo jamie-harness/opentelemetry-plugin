@@ -27,12 +27,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class TraceProcessor {
     public static final String ROOT_ID = "0000000000000000";
 
     public static List<String> convertTraceToJson() throws IOException {
-        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() +  "trace/");
+        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(), "trace/");
         JSONObject pipelineMap = new JSONObject();
 
         Files.walkFileTree(rootPath, EnumSet.noneOf(FileVisitOption.class), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
@@ -84,7 +87,7 @@ public class TraceProcessor {
         for (int i = 0; i < resultObject.length(); i++) {
             JSONObject result = resultObject.getJSONObject(i);
             String traceId = result.getString("traceId");
-            String fileName = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "result-" + traceId + ".json";
+            String fileName = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"result-" + traceId + ".json").toString();
             filesToConvert.add(fileName);
             try {
                 Files.write(Paths.get(fileName), result.toString(2).getBytes());
@@ -96,7 +99,7 @@ public class TraceProcessor {
     }
 
     public static List<String> convertTraceToPluginList() throws IOException {
-        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() +  "trace/");
+        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"trace/");
         JSONObject pipelineMap = new JSONObject();
 
         Files.walkFileTree(rootPath, EnumSet.noneOf(FileVisitOption.class), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
@@ -148,7 +151,7 @@ public class TraceProcessor {
         for (int i = 0; i < resultObject.length(); i++) {
             JSONObject result = resultObject.getJSONObject(i);
             String traceId = result.getString("traceId");
-            String fileName = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "result-" + traceId + ".json";
+            String fileName = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"result-" + traceId + ".json").toString();
             filesToConvert.add(fileName);
             try {
                 Files.write(Paths.get(fileName), result.toString(2).getBytes());
@@ -216,5 +219,24 @@ public class TraceProcessor {
             e.printStackTrace();
         }
         return jsonArray;
+    }
+
+    public static Path zipDirectory(List<String> sourceDirPaths) throws IOException {
+        Path zipFilePath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"trace", "result.zip");
+        Path relDir = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory());
+        try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipFilePath))) {
+        sourceDirPaths
+            .forEach(path -> {
+                ZipEntry zipEntry = new ZipEntry(relDir.relativize(Path.of(path)).toString());
+                try {
+                    zipOutputStream.putNextEntry(zipEntry);
+                    Files.copy(Path.of(path), zipOutputStream);
+                    zipOutputStream.closeEntry();
+                } catch (IOException e) {
+                    System.err.println("Failed to zip file: " + path + " - " + e.getMessage());
+                }
+            });
+        }
+        return zipFilePath;
     }
 }

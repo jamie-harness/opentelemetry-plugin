@@ -99,7 +99,7 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     }
 
 
-    private String directory = "./";
+    private String directory = Jenkins.get().getRootDir().getAbsolutePath();
     /**
      * OTLP endpoint prefixed by "http://" or "https://"
      */

@@ -104,9 +104,9 @@ public class GraphListenerAdapterToPipelineListener implements StepListener, Gra
             fireOnAfterStartNodeStep((StepStartNode) node, label, run);
         } else if (node instanceof StepNode) {
             logFlowNodeDetails(node, run);
-//            final Map<String, Object> arguments = ArgumentsAction.getFilteredArguments(node);
-//            String label = Objects.toString(arguments.get("label"), null);
-//            fireOnGeneralNodeStep((StepNode) node, label, run);
+            final Map<String, Object> arguments = ArgumentsAction.getFilteredArguments(node);
+            String label = Objects.toString(arguments.get("label"), null);
+            fireOnGeneralNodeStep((StepNode) node, label, run);
         }
         else {
             logFlowNodeDetails(node, run);
@@ -174,17 +174,17 @@ public class GraphListenerAdapterToPipelineListener implements StepListener, Gra
         }
         message += "///////\n";
         message += ", node.parent: " + Iterables.getFirst(node.getParents(), null);
-        writeToFile(message, node.getId() + run.getId());
+        writeToFile(message, run.getDisplayName() + run.getId());
     }
 
     private void writeToFile(String content, String fileName) {
         fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
-        String directoryPath = JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "debug/";
+        String directoryPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"debug/").toString();
         try {
             Path path = Paths.get(directoryPath);
             // Create the directory and its parent directories if they do not exist
             Files.createDirectories(path);
-            File myObj = new File(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() + "debug/" + fileName);
+            File myObj = new File(Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() ,"debug", fileName).toUri());
             if (myObj.createNewFile()) {
                 FileWriter myWriter = new FileWriter(myObj);
                 myWriter.write(content);

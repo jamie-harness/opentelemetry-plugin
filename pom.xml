@@ -439,18 +439,6 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.jenkins-ci.tools</groupId>
-                <artifactId>maven-hpi-plugin</artifactId>
-                <configuration>
-                    <loggers>
-                        <io.jenkins.plugins.opentelemetry.JenkinsOpenTelemetryPluginConfiguration>INFO</io.jenkins.plugins.opentelemetry.JenkinsOpenTelemetryPluginConfiguration>
-                        <io.jenkins.plugins.opentelemetry.job.log>INFO</io.jenkins.plugins.opentelemetry.job.log>
-                        <io.jenkins.plugins.opentelemetry.job.MonitoringPipelineListener>INFO</io.jenkins.plugins.opentelemetry.job.MonitoringPipelineListener>
-                        <io.jenkins.plugins.opentelemetry.job.MonitoringRunListener>INFO</io.jenkins.plugins.opentelemetry.job.MonitoringRunListener>
-                    </loggers>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>com.github.wvengen</groupId>
                 <artifactId>proguard-maven-plugin</artifactId>
                 <executions>
@@ -466,9 +454,18 @@
                         <option>-keep public class * extends java.applet.Applet { *; }</option>
                         <option>-dontwarn</option>
                     </options>
-                    <libs>
-                        <lib>/Library/Java/JavaVirtualMachines/jdk1.8.0_301.jdk/Contents/Home/jre/lib/rt.jar</lib>
-                    </libs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jenkins-ci.tools</groupId>
+                <artifactId>maven-hpi-plugin</artifactId>
+                <configuration>
+                    <loggers>
+                        <io.jenkins.plugins.opentelemetry.JenkinsOpenTelemetryPluginConfiguration>INFO</io.jenkins.plugins.opentelemetry.JenkinsOpenTelemetryPluginConfiguration>
+                        <io.jenkins.plugins.opentelemetry.job.log>INFO</io.jenkins.plugins.opentelemetry.job.log>
+                        <io.jenkins.plugins.opentelemetry.job.MonitoringPipelineListener>INFO</io.jenkins.plugins.opentelemetry.job.MonitoringPipelineListener>
+                        <io.jenkins.plugins.opentelemetry.job.MonitoringRunListener>INFO</io.jenkins.plugins.opentelemetry.job.MonitoringRunListener>
+                    </loggers>
                 </configuration>
             </plugin>
         </plugins>

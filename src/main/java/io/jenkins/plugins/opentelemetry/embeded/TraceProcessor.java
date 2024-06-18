@@ -1,5 +1,7 @@
 package io.jenkins.plugins.opentelemetry.embeded;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.jenkins.plugins.opentelemetry.JenkinsOpenTelemetryPluginConfiguration;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -9,12 +11,14 @@ import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.apache.tools.ant.util.ResourceUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
@@ -35,7 +39,7 @@ public class TraceProcessor {
     public static final String ROOT_ID = "0000000000000000";
 
     public static List<String> convertTraceToJson() throws IOException {
-        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(), "trace/");
+        Path rootPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(), "trace");
         JSONObject pipelineMap = new JSONObject();
 
         Files.walkFileTree(rootPath, EnumSet.noneOf(FileVisitOption.class), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
@@ -87,7 +91,8 @@ public class TraceProcessor {
         for (int i = 0; i < resultObject.length(); i++) {
             JSONObject result = resultObject.getJSONObject(i);
             String traceId = result.getString("traceId");
-            String fileName = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"result-" + traceId + ".json").toString();
+            String spanId = result.getString("spanId");
+            String fileName = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"result-" + traceId + spanId + ".json").toString();
             filesToConvert.add(fileName);
             try {
                 Files.write(Paths.get(fileName), result.toString(2).getBytes());
@@ -239,4 +244,23 @@ public class TraceProcessor {
         }
         return zipFilePath;
     }
+
+    public static void writeToFile(String content, String fileName) {
+        fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
+        String directoryPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"trace").toString();
+        try {
+            Path path = Paths.get(directoryPath);
+            // Create the directory and its parent directories if they do not exist
+            Files.createDirectories(path);
+            File myObj = new File(Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() ,"trace", fileName).toUri());
+            if (myObj.createNewFile()) {
+                FileWriter myWriter = new FileWriter(myObj);
+                myWriter.write(content);
+                myWriter.close();
+            } else {
+                System.out.println("File already exists.");
+            }
+        } catch (IOException ignore) {}
+    }
+
 }

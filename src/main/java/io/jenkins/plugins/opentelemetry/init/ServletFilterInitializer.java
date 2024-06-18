@@ -46,7 +46,7 @@ public class ServletFilterInitializer implements OtelComponent {
             traceContextServletFilter = new TraceContextServletFilter();
             addToPluginServletFilter(traceContextServletFilter);
         } else {
-            logger.log(Level.INFO, () -> "Jenkins Remote Span disabled");
+//            logger.log(Level.INFO, () -> "Jenkins Remote Span disabled");
         }
         // TODO support live reload of the config flag
         boolean jenkinsWebInstrumentationEnabled = Optional.ofNullable(configProperties.getBoolean(JenkinsOtelSemanticAttributes.OTEL_INSTRUMENTATION_JENKINS_WEB_ENABLED)).orElse(true);

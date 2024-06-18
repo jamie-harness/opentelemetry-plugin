@@ -27,8 +27,9 @@ import io.jenkins.plugins.opentelemetry.job.action.RunPhaseMonitoringAction;
 import io.jenkins.plugins.opentelemetry.semconv.JenkinsOtelSemanticAttributes;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.context.Context;
 import io.opentelemetry.sdk.trace.ReadableSpan;
-import io.opentelemetry.sdk.trace.data.SpanData;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -48,6 +49,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -62,6 +64,8 @@ public class OtelTraceService {
 
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
     public static boolean STRICT_MODE = false;
+
+    private final String ROOT_ID = "0000000000000000";
 
     public OtelTraceService() {
     }
@@ -193,15 +197,7 @@ public class OtelTraceService {
             .findFirst()
             .ifPresentOrElse(
                 FlowNodeMonitoringAction::purgeSpan,
-                () -> {
-                    String msg = "span not found to be purged: " + OtelUtils.toDebugString(span) +
-                        " ending " + OtelUtils.toDebugString(startSpanNode) + " in " + run;
-                    if (STRICT_MODE) {
-                        throw new IllegalStateException(msg);
-                    } else {
-                        LOGGER.log(Level.WARNING, msg);
-                    }
-                });
+                () -> {});
     }
 
 
@@ -213,9 +209,7 @@ public class OtelTraceService {
             .reverse()
             .stream()
             .filter(buildStepMonitoringAction -> Objects.equals(buildStepMonitoringAction.getSpanId(), span.getSpanContext().getSpanId()))
-            .findFirst().ifPresentOrElse(BuildStepMonitoringAction::purgeSpan, () -> {
-                throw new IllegalStateException("span not found to be purged: " + span + " for " + buildStep);
-            });
+            .findFirst().ifPresentOrElse(BuildStepMonitoringAction::purgeSpan, () -> {});
     }
 
     public void purgeRun(@NonNull Run run) {
@@ -236,98 +230,58 @@ public class OtelTraceService {
         writeToFile(build.getFullDisplayName() + "," + OtelUtils.toDebugString(span), "shouldnt_exist");
     }
 
-    public void putSpan(AbstractBuild build, BuildStep buildStep, Span span) {
-        build.addAction(new BuildStepMonitoringAction(span));
-        LOGGER.log(Level.FINEST, () -> "putSpan(" + build.getFullDisplayName() + ", " + buildStep + "," + OtelUtils.toDebugString(span) + ")");
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("name", build.getFullDisplayName());
-        node.put("parent", build.getParent().getFullName());
-        node.put("type", "Build Phase Span");
-        node.put("all-info", OtelUtils.toDebugString(span));
-        node.put("build step", buildStep.toString());
-
-        ReadableSpan readableSpan = (ReadableSpan) span;
-        SpanData spanData = readableSpan.toSpanData();
-
-        node.put("spanName", spanData.getName());
-        node.put("spanId", spanData.getSpanId());
-        node.put("parentSpanId", spanData.getParentSpanId());
-        node.put("traceId", spanData.getTraceId());
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode map = mapper.valueToTree(spanData.getAttributes().asMap());
-        node.put("attributesMap", map);
+    public void putSpan(AbstractBuild build, BuildStep buildStep, Span span, String parentSpanId, Map<Object, Object> attributeMap) {
         try {
-            node.put("parameterMap", mapper.readTree(spanData.getAttributes().asMap().get(AttributeKey.stringKey("harness-attribute")).toString()));
-        } catch (Exception ignored) {
+            build.addAction(new BuildStepMonitoringAction(span));
+            LOGGER.log(Level.FINE, () -> "putSpan(" + build.getFullDisplayName() + ", " + buildStep + "," + OtelUtils.toDebugString(span) + ")");
+            JsonNode node = compileInfoTOJson(build, span, attributeMap, parentSpanId, "Build Phase Span");
+            writeToFile(node.toPrettyString(), span.getSpanContext().getTraceId() + "-" + span.getSpanContext().getSpanId());
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "err", e);
         }
-        writeToFile(node.toPrettyString(), spanData.getTraceId() + "-" + spanData.getSpanId());
     }
 
     public void putSpan(@NonNull Run run, @NonNull Span span) {
-        run.addAction(new MonitoringAction(span));
-        LOGGER.log(Level.FINEST, () -> "putSpan(" + run.getFullDisplayName() + "," + OtelUtils.toDebugString(span) + ")");
-        ReadableSpan readableSpan = (ReadableSpan) span;
-        SpanData spanData = readableSpan.toSpanData();
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("name", run.getFullDisplayName());
-        node.put("parentSpanId", spanData.getParentSpanId());
-        node.put("traceId", spanData.getTraceId());
-        node.put("spanName", spanData.getName());
-        node.put("spanId", spanData.getSpanId());
-        writeToFile(node.toPrettyString(), spanData.getTraceId()+ "-" + spanData.getSpanId());
-    }
-
-    public void putRunPhaseSpan(@NonNull Run run, @NonNull Span span) {
-        run.addAction(new RunPhaseMonitoringAction(span));
-        LOGGER.log(Level.FINEST, () -> "putRunPhaseSpan(" + run.getFullDisplayName() + "," + OtelUtils.toDebugString(span) + ")");
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("name", run.getFullDisplayName());
-        node.put("parent", run.getParent().getFullName());
-        node.put("type", "Run Phase Span");
-        node.put("all-info", OtelUtils.toDebugString(span));
-        ReadableSpan readableSpan = (ReadableSpan) span;
-        SpanData spanData = readableSpan.toSpanData();
-        node.put("spanName", spanData.getName());
-        node.put("spanId", spanData.getSpanId());
-        node.put("parentSpanId", spanData.getParentSpanId());
-        node.put("traceId", spanData.getTraceId());
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode map = mapper.valueToTree(spanData.getAttributes().asMap());
-        node.put("attributesMap", map);
         try {
-            node.put("parameterMap", mapper.readTree(spanData.getAttributes().asMap().get(AttributeKey.stringKey("harness-attribute")).toString()));
-        } catch (Exception ignored) {
+            run.addAction(new MonitoringAction(span));
+            LOGGER.log(Level.FINE, () -> "putSpan(" + run.getFullDisplayName() + "," + OtelUtils.toDebugString(span) + ")");
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            node.put("name", run.getFullDisplayName());
+            node.put("parentSpanId", ROOT_ID);
+            node.put("traceId", span.getSpanContext().getTraceId());
+            node.put("spanName", run.getFullDisplayName());
+            node.put("spanId", span.getSpanContext().getSpanId());
+            writeToFile(node.toPrettyString(), span.getSpanContext().getTraceId()+ "-" + span.getSpanContext().getSpanId());
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "err", e);
         }
-        writeToFile(node.toPrettyString(), spanData.getTraceId()+ "-" + spanData.getSpanId());
     }
 
-    public void putSpan(@NonNull Run run, @NonNull Span span, @NonNull FlowNode flowNode) {
+    public void putRunPhaseSpan(@NonNull Run run, @NonNull Span span, Map<Object, Object> attributeMap, String spanId) {
+        try {
+            run.addAction(new RunPhaseMonitoringAction(span));
+            LOGGER.log(Level.FINE, () -> "putRunPhaseSpan(" + run.getFullDisplayName() + "," + OtelUtils.toDebugString(span) + ")");
+            JsonNode node = compileInfoTOJson(run, span, attributeMap, spanId, "Run Phase Span");
+            writeToFile(node.toPrettyString(), span.getSpanContext().getTraceId()+ "-" + span.getSpanContext().getSpanId());
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "err", e);
+        }
+
+    }
+
+    public void putSpan(@NonNull Run run, @NonNull Span span, @NonNull FlowNode flowNode, Map<Object, Object> attributeMap, String parentSpanId) {
+        try {
         // FYI for agent allocation, we have 2 FlowNodeMonitoringAction to track the agent allocation duration
-        flowNode.addAction(new FlowNodeMonitoringAction(span));
+            flowNode.addAction(new FlowNodeMonitoringAction(span));
 
-        LOGGER.log(Level.FINE, () -> "putSpan(" + run.getFullDisplayName() + ", " +
-            OtelUtils.toDebugString(flowNode) + ", " + OtelUtils.toDebugString(span) + ")");
+            LOGGER.log(Level.FINE, () -> "putSpan(" + run.getFullDisplayName() + ", " +
+                OtelUtils.toDebugString(flowNode) + ", " + OtelUtils.toDebugString(span) + ")");
 
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("name", run.getFullDisplayName());
-        node.put("parent", run.getParent().getFullName());
-        node.put("type", "Run Phase Span");
-        ReadableSpan readableSpan = (ReadableSpan) span;
-        SpanData spanData = readableSpan.toSpanData();
-        node.put("spanName", spanData.getName());
-        node.put("spanId", spanData.getSpanId());
-        node.put("parentSpanId", spanData.getParentSpanId());
-        node.put("traceId", spanData.getTraceId());
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode map = mapper.valueToTree(spanData.getAttributes().asMap());
-        node.put("attributesMap", map);
-        try {
-            node.put("parameterMap", mapper.readTree(spanData.getAttributes().asMap().get(AttributeKey.stringKey("harness-attribute")).toString()));
-        } catch (Exception ignored) {
-            
+            JsonNode node = compileInfoTOJson(run, span, attributeMap, parentSpanId, "Run Phase Span");
+            writeToFile(node.toPrettyString(), span.getSpanContext().getTraceId()+ "-" + span.getSpanContext().getSpanId());
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE,"err", e);
         }
-        node.put("all-info", OtelUtils.toDebugString(span));
-        writeToFile(node.toPrettyString(), spanData.getTraceId()+ "-" + spanData.getSpanId());
     }
 
     static public OtelTraceService get() {
@@ -336,7 +290,7 @@ public class OtelTraceService {
 
     private void writeToFile(String content, String fileName) {
         fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
-        String directoryPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"trace/").toString();
+        String directoryPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"trace").toString();
         try {
             Path path = Paths.get(directoryPath);
             // Create the directory and its parent directories if they do not exist
@@ -350,5 +304,31 @@ public class OtelTraceService {
                 System.out.println("File already exists.");
             }
         } catch (IOException ignore) {}
+    }
+
+    private ObjectNode compileInfoTOJson(Run run, Span span, Map<Object, Object> attributeMap, String parentSpanId, String type) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("name", run.getFullDisplayName());
+        node.put("parent", run.getParent().getFullName());
+        node.put("type", type);
+        node.put("all-info", OtelUtils.toDebugString(span));
+        node.put("spanName", run.getDisplayName());
+        node.put("spanId", span.getSpanContext().getSpanId());
+        if (span instanceof ReadableSpan) {
+            parentSpanId = ((ReadableSpan) span).toSpanData().getParentSpanId();
+        }
+        if(parentSpanId.equals(span.getSpanContext().getSpanId())) {
+            node.put("parentSpanId", ROOT_ID);
+        } else {
+            node.put("parentSpanId", parentSpanId);
+        }
+        node.put("traceId", span.getSpanContext().getTraceId());
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode map = mapper.valueToTree(attributeMap);
+        node.put("attributesMap", map);
+        try {
+            node.put("parameterMap", mapper.readTree(attributeMap.get(AttributeKey.stringKey("harness-attribute")).toString()));
+        } catch (Exception ignored) {}
+        return node;
     }
 }

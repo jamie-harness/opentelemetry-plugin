@@ -32,6 +32,9 @@ import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 import javax.annotation.PreDestroy;
 import java.util.Collections;
@@ -135,9 +138,9 @@ public class OpenTelemetrySdkProvider {
         if (configuration.getEndpoint().isPresent()) {
             initializeOtlp(configuration);
         } else {
-            initializeNoOp();
+
         }
-        LOGGER.log(Level.FINE, () -> "Initialize Otel SDK on components: " + ExtensionList.lookup(OtelComponent.class).stream().sorted().map(e -> e.getClass().getName()).collect(Collectors.joining(", ")));
+//        LOGGER.log(Level.FINE, () -> "Initialize Otel SDK on components: " + ExtensionList.lookup(OtelComponent.class).stream().sorted().map(e -> e.getClass().getName()).collect(Collectors.joining(", ")));
         ExtensionList.lookup(OtelComponent.class).stream().sorted().forEachOrdered(otelComponent -> {
             otelComponent.afterSdkInitialized(meter, openTelemetry.getLogsBridge(), eventEmitter, tracer, config);
             otelComponent.afterSdkInitialized(openTelemetry, config);
@@ -171,10 +174,23 @@ public class OpenTelemetrySdkProvider {
         this.openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
         this.openTelemetry = new ClosingOpenTelemetry(this.openTelemetrySdk);
         String opentelemetryPluginVersion = OtelUtils.getOpentelemetryPluginVersion();
-        this.tracer.setDelegate(openTelemetry.getTracerProvider()
-            .tracerBuilder(JenkinsOtelSemanticAttributes.INSTRUMENTATION_NAME)
-            .setInstrumentationVersion(opentelemetryPluginVersion)
-            .build());
+
+        SpanExporter spanExporter = InMemorySpanExporter.create();
+
+        // Set up the tracer provider with the exporter
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+            .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+            .build();
+
+        // Initialize the OpenTelemetry SDK with the tracer provider
+        OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
+
+
+        // Get the tracer
+        Tracer tracer = tracerProvider.get(JenkinsOtelSemanticAttributes.INSTRUMENTATION_NAME);
+
+        this.tracer.setDelegate(tracer);
+
         this.meter = openTelemetry.getMeterProvider()
             .meterBuilder(JenkinsOtelSemanticAttributes.INSTRUMENTATION_NAME)
             .setInstrumentationVersion(opentelemetryPluginVersion)
@@ -185,7 +201,7 @@ public class OpenTelemetrySdkProvider {
             .setEventDomain("jenkins")
             .build();
 
-        LOGGER.log(Level.INFO, () -> "OpenTelemetry SDK initialized: " + OtelUtils.prettyPrintOtelSdkConfig(this.config, this.resource));
+//        LOGGER.log(Level.INFO, () -> "OpenTelemetry SDK initialized: " + OtelUtils.prettyPrintOtelSdkConfig(this.config, this.resource));
     }
 
     @VisibleForTesting

@@ -24,6 +24,7 @@ import io.opentelemetry.api.logs.LoggerProvider;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
+import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
@@ -33,10 +34,9 @@ import jenkins.YesNoMaybe;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
-import org.kohsuke.stapler.lang.FieldRef;
 
 import javax.inject.Inject;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -64,17 +64,24 @@ public class MonitoringBuildStepListener extends BuildStepListener implements Ot
             SpanBuilder spanBuilder = getTracer().spanBuilder(stepName);
             JenkinsOpenTelemetryPluginConfiguration.StepPlugin stepPlugin = JenkinsOpenTelemetryPluginConfiguration.get().findStepPluginOrDefault(stepName, buildStep);
 
+
             final String jenkinsVersion = OtelUtils.getJenkinsVersion();
+            Map<Object, Object> attributeMap = new HashMap<>();
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, stepName);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.isUnknown() ? JENKINS_CORE : stepPlugin.getName());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.isUnknown() ? jenkinsVersion : stepPlugin.getVersion());
+            Context parent = Context.current();
             spanBuilder
-                .setParent(Context.current())
+                .setParent(parent)
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, stepName)
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.isUnknown() ? JENKINS_CORE : stepPlugin.getName())
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.isUnknown() ? jenkinsVersion : stepPlugin.getVersion());
-            populateHarnessData(spanBuilder, build);
+            String parentSpanId = Span.fromContext(parent).getSpanContext().getSpanId();
+            populateHarnessData(spanBuilder, build, attributeMap);
             Span atomicStepSpan = spanBuilder.startSpan();
             LOGGER.log(Level.FINE, () -> build.getFullDisplayName() + " - > " + stepName + " - begin " + OtelUtils.toDebugString(atomicStepSpan));
 
-            getTracerService().putSpan(build, buildStep, atomicStepSpan);
+            getTracerService().putSpan(build, buildStep, atomicStepSpan, parentSpanId, attributeMap);
         }
     }
 
@@ -147,7 +154,7 @@ public class MonitoringBuildStepListener extends BuildStepListener implements Ot
 
     }
 
-    private void populateHarnessData(SpanBuilder spanBuilder,AbstractBuild build) {
+    private void populateHarnessData(SpanBuilder spanBuilder,AbstractBuild build, Map<Object, Object> attributeMap) {
         StringBuilder sb = new StringBuilder();
         sb.append("Build Name: ");
         sb.append(build.getExecutor().getCurrentWorkspace().getName());
@@ -166,11 +173,14 @@ public class MonitoringBuildStepListener extends BuildStepListener implements Ot
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode map = mapper.valueToTree(augAction.getArguments());
                 spanBuilder.setAttribute("harness-attribute", map.toPrettyString());
+                attributeMap.put("harness-attribute", map.toPrettyString());
             } else {
                 spanBuilder.setAttribute("harness-attribute-extra-build-step: " + action, action.toString());
+                attributeMap.put("harness-attribute-extra-build-step: " + action, action.toString());
             }
         }
 
         spanBuilder.setAttribute("harness-others", sb.toString());
+        attributeMap.put("harness-others", sb.toString());
     }
 }

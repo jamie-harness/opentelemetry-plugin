@@ -17,7 +17,7 @@
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <properties>
-        <revision>2.18.1</revision>
+        <revision>2.18.4</revision>
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.361.4</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
@@ -39,6 +39,51 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-cps</artifactId>
+                <version>3653.v07ea_433c90b_4</version> <!-- Use the latest version that works with all other dependencies -->
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins</groupId>
+                <artifactId>jackson2-api</artifactId>
+                <version>2.14.2-319.v37853346a_229</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-job</artifactId>
+                <version>1289.1291.vb_7c188e7e7df</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-basic-steps</artifactId>
+                <version>1010.vf7a_b_98e847c1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-durable-task-step</artifactId>
+                <version>1244.vee71f675dee6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins</groupId>
+                <artifactId>pipeline-build-step</artifactId>
+                <version>488.v8993df156e8d</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-multibranch</artifactId>
+                <version>733.v109046189126</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkinsci.plugins</groupId>
+                <artifactId>pipeline-model-definition</artifactId>
+                <version>2.2125.vddb_a_44a_d605e</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jenkins.plugins</groupId>
+                <artifactId>okhttp-api</artifactId>
+                <version>4.9.3-108.v0feda04578cf</version>
+            </dependency>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.361.x</artifactId>
@@ -259,35 +304,51 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-multibranch</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                    <artifactId>workflow-cps</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jenkinsci.plugins</groupId>
             <artifactId>pipeline-model-definition</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                    <artifactId>workflow-cps</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>matrix-project</artifactId>
+            <version>785.v06b_7f47b_c631</version>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>job-dsl</artifactId>
-            <version>1.82</version>
+            <version>1.78.1</version>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git</artifactId>
             <optional>true</optional>
+            <version>5.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.coravy.hudson.plugins.github</groupId>
             <artifactId>github</artifactId>
+            <version>1.37.0</version>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>gitlab-plugin</artifactId>
+            <version>1.5.22</version>
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -368,6 +429,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>scm-api</artifactId>
+            <version>631.v9143df5b_e4a_a</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>

@@ -160,7 +160,6 @@ public class GraphListenerAdapterToPipelineListener implements StepListener, Gra
             message += "descriptor (class:" + descriptor.getClass().getName() + ", " + descriptor.getFunctionName() + "), \n";
         }
         message += node.getAllActions().stream().map(action -> Objects.toString(action.getDisplayName(), action.getClass().toString())).collect(Collectors.joining(", "));
-        message += "///////\n";
         for (Action action : node.getAllActions()) {
             if (action instanceof ArgumentsAction) {
                 ArgumentsAction augAction = (ArgumentsAction) action;
@@ -172,19 +171,18 @@ public class GraphListenerAdapterToPipelineListener implements StepListener, Gra
                 message +="harness-attribute-extra-debug: " + action + "\n";
             }
         }
-        message += "///////\n";
         message += ", node.parent: " + Iterables.getFirst(node.getParents(), null);
-        writeToFile(message, run.getDisplayName() + run.getId());
+//        writeToFile(message, run.getDisplayName() + node.getId() + run.getId());
     }
 
     private void writeToFile(String content, String fileName) {
         fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
-        String directoryPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"debug/").toString();
+        String directoryPath = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(),"extra/").toString();
         try {
             Path path = Paths.get(directoryPath);
             // Create the directory and its parent directories if they do not exist
             Files.createDirectories(path);
-            File myObj = new File(Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() ,"debug", fileName).toUri());
+            File myObj = new File(Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() ,"extra", fileName).toUri());
             if (myObj.createNewFile()) {
                 FileWriter myWriter = new FileWriter(myObj);
                 myWriter.write(content);

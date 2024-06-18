@@ -30,6 +30,7 @@ import io.opentelemetry.api.logs.LoggerProvider;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
+import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
@@ -96,41 +97,60 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
             String stepType = getStepType(stepStartNode, stepStartNode.getDescriptor(), JenkinsOtelSemanticAttributes.STEP_NODE);
             JenkinsOpenTelemetryPluginConfiguration.StepPlugin stepPlugin = JenkinsOpenTelemetryPluginConfiguration.get().findStepPluginOrDefault(stepType, stepStartNode);
 
+            Map<Object, Object> attributeMap = new HashMap<>();
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, JenkinsOtelSemanticAttributes.AGENT); // FIXME verify it's the right semantic and value
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_CREDENTIALS_ID, stepStartNode.getAllActions().toString());
+            Context parent = Context.current();
             SpanBuilder agentSpanBuilder = getTracer().spanBuilder(JenkinsOtelSemanticAttributes.AGENT_UI)
-                .setParent(Context.current())
+                .setParent(parent)
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType)
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId())
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, JenkinsOtelSemanticAttributes.AGENT) // FIXME verify it's the right semantic and value
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName())
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion())
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_CREDENTIALS_ID, stepStartNode.getAllActions().toString());
+            String parentSpanId = Span.fromContext(parent).getSpanContext().getSpanId();
             if (agentLabel != null) {
+                attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_AGENT_LABEL, agentLabel);
                 agentSpanBuilder.setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_AGENT_LABEL, agentLabel);
             }
-            populateHarnessData(agentSpanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields());
+            populateHarnessData(agentSpanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields(), attributeMap);
             Span agentSpan = agentSpanBuilder.startSpan();
 
             LOGGER.log(Level.FINE, () -> run.getFullDisplayName() + " - > " + JenkinsOtelSemanticAttributes.AGENT + "(" + agentLabel + ") - begin " + OtelUtils.toDebugString(agentSpan));
 
-            getTracerService().putSpan(run, agentSpan, stepStartNode);
+            getTracerService().putSpan(run, agentSpan, stepStartNode, attributeMap, parentSpanId);
 
             try (Scope allocateAgentSpanScope = agentSpan.makeCurrent()) {
+                Context parent1 = Context.current();
                 SpanBuilder allocateAgentSpanBuilder = getTracer().spanBuilder(JenkinsOtelSemanticAttributes.AGENT_ALLOCATION_UI)
-                    .setParent(Context.current())
+                    .setParent(parent)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, getStepType(stepStartNode, stepStartNode.getDescriptor(), JenkinsOtelSemanticAttributes.STEP_NODE))
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, JenkinsOtelSemanticAttributes.AGENT_ALLOCATE) // FIXME verify it's the right semantic and value
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
+                String parentSpanId1 = Span.fromContext(parent).getSpanContext().getSpanId();
+                Map<Object, Object> stepStartAttributeMap = new HashMap<>();
+                stepStartAttributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, getStepType(stepStartNode, stepStartNode.getDescriptor(), JenkinsOtelSemanticAttributes.STEP_NODE));
+                stepStartAttributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId());
+                stepStartAttributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, JenkinsOtelSemanticAttributes.AGENT_ALLOCATE); // FIXME verify it's the right semantic and value
+                stepStartAttributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName());
+                stepStartAttributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
+
                 if (agentLabel != null) {
                     allocateAgentSpanBuilder.setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_AGENT_LABEL, agentLabel);
                 }
-                populateHarnessData(allocateAgentSpanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields());
+                populateHarnessData(allocateAgentSpanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields(), stepStartAttributeMap);
                 Span allocateAgentSpan = allocateAgentSpanBuilder.startSpan();
 
                 LOGGER.log(Level.FINE, () -> run.getFullDisplayName() + " - > " + JenkinsOtelSemanticAttributes.AGENT_ALLOCATE + "(" + agentLabel + ") - begin " + OtelUtils.toDebugString(allocateAgentSpan));
 
-                getTracerService().putSpan(run, allocateAgentSpan, stepStartNode);
+                getTracerService().putSpan(run, allocateAgentSpan, stepStartNode, stepStartAttributeMap, parentSpanId1);
             }
         }
     }
@@ -151,16 +171,18 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
             String stepType = getStepType(stepStartNode, stepNode.getDescriptor(),"stage");
 //            JenkinsOpenTelemetryPluginConfiguration.StepPlugin stepPlugin = JenkinsOpenTelemetryPluginConfiguration.get().findStepPluginOrDefault(stepType, stepStartNode);
 
+            Map<Object, Object> attributeMap = new HashMap<>();
+            Context parent = Context.current();
             SpanBuilder spanBuilder = getTracer().spanBuilder(spanStageName)
-                .setParent(Context.current())
+                .setParent(parent)
                 .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType);
-
-
-            populateHarnessData(spanBuilder, stepStartNode.getAllActions(), stepNode.getDescriptor().getKlass().getFields());
+            String parentSpanId = Span.fromContext(parent).getSpanContext().getSpanId();
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType);
+            populateHarnessData(spanBuilder, stepStartNode.getAllActions(), stepNode.getDescriptor().getKlass().getFields(), attributeMap);
             Span stageSpan = spanBuilder.startSpan();
             LOGGER.log(Level.FINE, () -> run.getFullDisplayName() + " - > stage(" + nodeLabel + ") - begin " + OtelUtils.toDebugString(stageSpan));
 
-            getTracerService().putSpan(run, stageSpan, stepStartNode);
+            getTracerService().putSpan(run, stageSpan, stepStartNode, attributeMap, parentSpanId);
         }
     }
 
@@ -173,20 +195,27 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
             String stepType = getStepType(stepStartNode, stepStartNode.getDescriptor(),"stage");
             JenkinsOpenTelemetryPluginConfiguration.StepPlugin stepPlugin = JenkinsOpenTelemetryPluginConfiguration.get().findStepPluginOrDefault(stepType, stepStartNode);
 
+            Map<Object, Object> attributeMap = new HashMap<>();
+            Context parent = Context.current();
             SpanBuilder spanBuilder = getTracer().spanBuilder(spanStageName)
-                    .setParent(Context.current())
+                    .setParent(parent)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, stageName)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
+            String parentSpanId = Span.fromContext(parent).getSpanContext().getSpanId();
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, stageName);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
 
-
-            populateHarnessData(spanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields());
+            populateHarnessData(spanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields(), attributeMap);
             Span stageSpan = spanBuilder.startSpan();
             LOGGER.log(Level.FINE, () -> run.getFullDisplayName() + " - > stage(" + stageName + ") - begin " + OtelUtils.toDebugString(stageSpan));
 
-            getTracerService().putSpan(run, stageSpan, stepStartNode);
+            getTracerService().putSpan(run, stageSpan, stepStartNode, attributeMap, parentSpanId);
         }
     }
 
@@ -228,21 +257,30 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
             String stepType = getStepType(node, node.getDescriptor(), JenkinsOtelSemanticAttributes.STEP_NAME);
             JenkinsOpenTelemetryPluginConfiguration.StepPlugin stepPlugin = JenkinsOpenTelemetryPluginConfiguration.get().findStepPluginOrDefault(stepType, node);
 
+            Map<Object, Object> attributeMap = new HashMap<>();
+            Context parent = Context.current();
             spanBuilder
-                    .setParent(Context.current()) // TODO can we remove this call?
+                    .setParent(parent) // TODO can we remove this call?
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, node.getId())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, getStepName(node, JenkinsOtelSemanticAttributes.STEP_NAME))
                     .setAttribute(JenkinsOtelSemanticAttributes.CI_PIPELINE_RUN_USER, principal)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
-            populateHarnessData(spanBuilder, node.getAllActions(), node.getDescriptor().getKlass().getFields());
+            String parentSpanId = Span.fromContext(parent).getSpanContext().getSpanId();
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, node.getId());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, getStepName(node, JenkinsOtelSemanticAttributes.STEP_NAME));
+            attributeMap.put(JenkinsOtelSemanticAttributes.CI_PIPELINE_RUN_USER, principal);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
+            populateHarnessData(spanBuilder, node.getAllActions(), node.getDescriptor().getKlass().getFields(), attributeMap);
             Span atomicStepSpan = spanBuilder.startSpan();
             LOGGER.log(Level.FINE, () -> run.getFullDisplayName() + " - > " + node.getDisplayFunctionName() + " - begin " + OtelUtils.toDebugString(atomicStepSpan));
             try (Scope ignored2 = atomicStepSpan.makeCurrent()) {
                 stepHandler.afterSpanCreated(node, run);
             }
-            getTracerService().putSpan(run, atomicStepSpan, node);
+            getTracerService().putSpan(run, atomicStepSpan, node, attributeMap, parentSpanId);
         }
     }
 
@@ -308,18 +346,28 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
 
             String stepType = getStepType(stepStartNode, stepStartNode.getDescriptor(),"branch");
             JenkinsOpenTelemetryPluginConfiguration.StepPlugin stepPlugin = JenkinsOpenTelemetryPluginConfiguration.get().findStepPluginOrDefault(stepType, stepStartNode);
+            Map<Object, Object> attributeMap = new HashMap<>();
+
+            Context parent = Context.current();
             SpanBuilder atomicStepSpanBuilder = getTracer().spanBuilder("Parallel branch: " + branchName)
-                    .setParent(Context.current())
+                    .setParent(parent)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, branchName)
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName())
                     .setAttribute(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
-            populateHarnessData(atomicStepSpanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields());
+            String parentSpanId = Span.fromContext(parent).getSpanContext().getSpanId();
+
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_TYPE, stepType);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_ID, stepStartNode.getId());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_NAME, branchName);
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_NAME, stepPlugin.getName());
+            attributeMap.put(JenkinsOtelSemanticAttributes.JENKINS_STEP_PLUGIN_VERSION, stepPlugin.getVersion());
+            populateHarnessData(atomicStepSpanBuilder, stepStartNode.getAllActions(), stepStartNode.getDescriptor().getKlass().getFields(), attributeMap);
             Span atomicStepSpan = atomicStepSpanBuilder.startSpan();
             LOGGER.log(Level.FINE, () -> run.getFullDisplayName() + " - > parallel branch(" + branchName + ") - begin " + OtelUtils.toDebugString(atomicStepSpan));
 
-            getTracerService().putSpan(run, atomicStepSpan, stepStartNode);
+            getTracerService().putSpan(run, atomicStepSpan, stepStartNode, attributeMap, parentSpanId);
         }
     }
 
@@ -448,7 +496,7 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
 
     }
 
-    private void populateHarnessData(SpanBuilder spanBuilder, List<? extends Action> actions,  List<FieldRef> fields) {
+    private void populateHarnessData(SpanBuilder spanBuilder, List<? extends Action> actions,  List<FieldRef> fields, Map<Object, Object> attributeMap) {
         StringBuilder sb = new StringBuilder();
         for (FieldRef fieldRef : fields) {
             sb.append("-");
@@ -467,12 +515,15 @@ public class MonitoringPipelineListener extends AbstractPipelineListener impleme
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode map = mapper.valueToTree(augAction.getArguments());
                 spanBuilder.setAttribute("harness-attribute", map.toPrettyString());
+                attributeMap.put("harness-attribute", map.toPrettyString());
             }
             else {
                 spanBuilder.setAttribute("harness-attribute-extra-pip: " + action, action.toString());
+                attributeMap.put("harness-attribute-extra-pip: " + action, action.toString());
             }
         }
 
         spanBuilder.setAttribute("harness-others", sb.toString());
+        attributeMap.put("harness-others", sb.toString());
     }
 }

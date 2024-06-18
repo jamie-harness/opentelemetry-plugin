@@ -97,32 +97,14 @@ public class OpenTelemetryConfiguration {
         Map<String, String> properties = new HashMap<>();
         properties.putAll(this.configurationProperties);
         if (TESTING_INMEMORY_MODE) {
-            properties.put("otel.traces.exporter", "testing");
-            properties.put("otel.metrics.exporter", "testing");
+            properties.put("otel.traces.exporter", "none");
+            properties.put("otel.metrics.exporter", "none");
             properties.put("otel.imr.export.interval", "10ms");
         } else if (this.getEndpoint().isPresent()) {
             this.getEndpoint().ifPresent(endpoint -> { // prepare of Optional.ifPResentOrElse()
-                properties.compute("otel.traces.exporter", (key, oldValue) -> {
-                  if (oldValue == null) {
-                    return "otlp";
-                   } else if ("none".equals(oldValue)) {
-                     return "none";
-                   } else if (oldValue.contains("otlp")) {
-                     return oldValue;
-                   } else {
-                     return oldValue.concat(",otlp");
-                   }});
-                properties.compute("otel.metrics.exporter", (key, oldValue) -> {
-                    if (oldValue == null) {
-                        return "otlp";
-                    } else if ("none".equals(oldValue)) {
-                        return "none";
-                    } else if (oldValue.contains("otlp")) {
-                        return oldValue;
-                    } else {
-                        return oldValue.concat(",otlp");
-                    }});
-                properties.put("otel.exporter.otlp.endpoint", endpoint);
+                properties.compute("otel.traces.exporter", (key, oldValue) -> "none");
+                properties.compute("otel.metrics.exporter", (key, oldValue) -> "none");
+                properties.put("otel.exporter.otlp.endpoint", "none");
             });
         } else if (StringUtils.isBlank(OtelUtils.getSystemPropertyOrEnvironmentVariable("OTEL_TRACES_EXPORTER")) &&
             StringUtils.isBlank(OtelUtils.getSystemPropertyOrEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")) &&
@@ -131,21 +113,8 @@ public class OpenTelemetryConfiguration {
             properties.put("otel.traces.exporter", "none");
         }
 
-        this.getTrustedCertificatesPem().ifPresent(
-            trustedCertificatesPem -> properties.put("otel.exporter.otlp.certificate", trustedCertificatesPem));
-
-        this.getAuthentication().ifPresent(authentication ->
-            authentication.enrichOpenTelemetryAutoConfigureConfigProperties(properties));
-
-        this.getExporterTimeoutMillis().map(Object::toString).ifPresent(exporterTimeoutMillis ->
-            properties.put("otel.exporter.otlp.timeout", exporterTimeoutMillis));
-
-        this.getExporterIntervalMillis().map(Object::toString).ifPresent(exporterIntervalMillis ->
-            properties.put("otel.imr.export.interval", exporterIntervalMillis));
-
-        this.getDisabledResourceProviders().ifPresent(disabledResourceProviders ->
-            properties.put("otel.java.disabled.resource.providers", disabledResourceProviders));
-
+        properties.put("otel.logs.exporter", "none");
+        properties.put("otel.sdk.disabled", "false");
         return properties;
     }
 

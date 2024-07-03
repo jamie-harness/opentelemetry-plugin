@@ -219,14 +219,13 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     @Initializer(after = InitMilestone.SYSTEM_CONFIG_ADAPTED, before = InitMilestone.JOB_LOADED)
     @SuppressWarnings("MustBeClosedChecker")
     public void initializeOpenTelemetry() {
-        LOGGER.log(Level.FINE, "Initialize Jenkins OpenTelemetry Plugin...");
+        LOGGER.log(Level.FINE, "Initialize Jenkins Migration Plugin...");
         OpenTelemetryConfiguration newOpenTelemetryConfiguration = toOpenTelemetryConfiguration();
         if (Objects.equals(this.currentOpenTelemetryConfiguration, newOpenTelemetryConfiguration)) {
             LOGGER.log(Level.FINE, "Configuration didn't change, skip reconfiguration");
-        } else {
-            openTelemetrySdkProvider.initialize(newOpenTelemetryConfiguration);
-            this.currentOpenTelemetryConfiguration = newOpenTelemetryConfiguration;
         }
+        openTelemetrySdkProvider.initialize(newOpenTelemetryConfiguration);
+        this.currentOpenTelemetryConfiguration = newOpenTelemetryConfiguration;
 
         if (logStorageRetriever != null && logStorageRetriever instanceof Closeable) {
             LOGGER.log(Level.FINE, () -> "Close " + logStorageRetriever + "...");

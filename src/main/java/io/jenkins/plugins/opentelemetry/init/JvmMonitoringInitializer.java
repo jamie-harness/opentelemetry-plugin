@@ -30,10 +30,10 @@ public class JvmMonitoringInitializer implements OtelComponent {
     @Override
     public void afterSdkInitialized(OpenTelemetry openTelemetry, ConfigProperties config) {
 
-        boolean defaultEnabled = config.getBoolean("otel.instrumentation.common.default-enabled", true);
-        if (!config.getBoolean("otel.instrumentation.runtime-metrics.enabled", defaultEnabled)) {
-            return;
-        }
+//        boolean defaultEnabled = config.getBoolean("otel.instrumentation.common.default-enabled", true);
+//        if (!config.getBoolean("otel.instrumentation.runtime-metrics.enabled", defaultEnabled)) {
+//            return;
+//        }
 
         BufferPools.registerObservers(openTelemetry);
         Classes.registerObservers(openTelemetry);

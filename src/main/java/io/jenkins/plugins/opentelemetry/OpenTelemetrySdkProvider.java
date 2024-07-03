@@ -135,12 +135,8 @@ public class OpenTelemetrySdkProvider {
 
     public void initialize(@NonNull OpenTelemetryConfiguration configuration) {
         shutdown(); // shutdown existing SDK
-        if (configuration.getEndpoint().isPresent()) {
-            initializeOtlp(configuration);
-        } else {
-
-        }
-//        LOGGER.log(Level.FINE, () -> "Initialize Otel SDK on components: " + ExtensionList.lookup(OtelComponent.class).stream().sorted().map(e -> e.getClass().getName()).collect(Collectors.joining(", ")));
+        initializeOtlp(configuration);
+        LOGGER.log(Level.FINE, () -> "Initialize SDK on components: " + ExtensionList.lookup(OtelComponent.class).stream().sorted().map(e -> e.getClass().getName()).collect(Collectors.joining(", ")));
         ExtensionList.lookup(OtelComponent.class).stream().sorted().forEachOrdered(otelComponent -> {
             otelComponent.afterSdkInitialized(meter, openTelemetry.getLogsBridge(), eventEmitter, tracer, config);
             otelComponent.afterSdkInitialized(openTelemetry, config);
@@ -183,7 +179,7 @@ public class OpenTelemetrySdkProvider {
             .build();
 
         // Initialize the OpenTelemetry SDK with the tracer provider
-        OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
+        this.openTelemetrySdk = OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
 
 
         // Get the tracer
@@ -201,7 +197,7 @@ public class OpenTelemetrySdkProvider {
             .setEventDomain("jenkins")
             .build();
 
-//        LOGGER.log(Level.INFO, () -> "OpenTelemetry SDK initialized: " + OtelUtils.prettyPrintOtelSdkConfig(this.config, this.resource));
+        LOGGER.log(Level.INFO, () -> "SDK initialized: " + OtelUtils.prettyPrintOtelSdkConfig(this.config, this.resource));
     }
 
     @VisibleForTesting

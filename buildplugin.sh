@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Change to the directory of the script
-cd "$(dirname "opentelemetry-plugin")"
+cd "$(dirname "opentelemetry-plugin-dm")"
 
 # Run the commands sequentially
 brew services stop jenkins-lts

@@ -29,6 +29,15 @@ public class OpenTelemetryConfiguration {
     public static boolean TESTING_INMEMORY_MODE = false;
 
     private final Optional<String> directory;
+
+    private final Optional<String> API_KEY;
+
+    private final Optional<String> accountIdentifier;
+
+    private final Optional<String> orgIdentifier;
+
+    private final Optional<String> projectIdentifier;
+
     private final Optional<String> endpoint;
     private final Optional<String> trustedCertificatesPem;
     private final Optional<OtlpAuthentication> authentication;
@@ -39,10 +48,18 @@ public class OpenTelemetryConfiguration {
     private final Optional<String> disabledResourceProviders;
     private final Map<String, String> configurationProperties;
 
-    public OpenTelemetryConfiguration(Optional<String> directory, Optional<String> endpoint, Optional<String> trustedCertificatesPem, Optional<OtlpAuthentication> authentication,
+    public OpenTelemetryConfiguration(Optional<String> directory,
+                                      Optional<String> API_KEY, Optional<String> accountIdentifier, Optional<String> orgIdentifier, Optional<String> projectIdentifier,
+                                      Optional<String> endpoint, Optional<String> trustedCertificatesPem, Optional<OtlpAuthentication> authentication,
                                       Optional<Integer> exporterTimeoutMillis, Optional<Integer> exporterIntervalMillis,
                                       Optional<String> serviceName, Optional<String> serviceNamespace, Optional<String> disabledResourceProviders, Map<String, String> configurationProperties) {
         this.directory = directory;
+
+        this.API_KEY=API_KEY;
+        this.accountIdentifier=accountIdentifier;
+        this.orgIdentifier=orgIdentifier;
+        this.projectIdentifier=projectIdentifier;
+
         this.endpoint = endpoint.filter(StringUtils::isNotBlank);
         this.trustedCertificatesPem = trustedCertificatesPem.filter(StringUtils::isNotBlank);
         this.authentication = authentication;
@@ -57,6 +74,23 @@ public class OpenTelemetryConfiguration {
     public Optional<String> getDirectory() {
         return directory;
     }
+
+    public Optional<String> getAPI_KEY() {
+        return this.API_KEY;
+    }
+
+    public Optional<String> getAccountIdentifier() {
+        return this.accountIdentifier;
+    }
+
+    public Optional<String> getOrgIdentifier() {
+        return this.orgIdentifier;
+    }
+
+    public Optional<String> getProjectIdentifier() {
+        return this.projectIdentifier;
+    }
+
     public Optional<String> getEndpoint() {
         return endpoint;
     }

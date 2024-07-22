@@ -100,6 +100,14 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
 
 
     private String directory = "./";
+
+    private String API_KEY= "";
+
+    private String accountIdentifier = "";
+
+    private String orgIdentifier = "default";
+
+    private String projectIdentifier = "";
     /**
      * OTLP endpoint prefixed by "http://" or "https://"
      */
@@ -201,6 +209,12 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
 
         return new OpenTelemetryConfiguration(
             Optional.ofNullable(this.getDirectory()),
+
+            Optional.ofNullable(this.getAPI_KEY()),
+            Optional.ofNullable(this.getAccountIdentifier()),
+            Optional.ofNullable(this.getOrgIdentifier()),
+            Optional.ofNullable(this.getProjectIdentifier()),
+
             Optional.ofNullable(this.getEndpoint()),
             Optional.ofNullable(this.getTrustedCertificatesPem()),
             Optional.ofNullable(this.getAuthentication()),
@@ -260,6 +274,23 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     }
 
     @CheckForNull
+    public String getAPI_KEY() {
+        return this.API_KEY;
+    }
+    @CheckForNull
+    public String getAccountIdentifier() {
+        return this.accountIdentifier;
+    }
+    @CheckForNull
+    public String getOrgIdentifier() {
+        return this.orgIdentifier;
+    }
+    @CheckForNull
+    public String getProjectIdentifier() {
+        return this.projectIdentifier;
+    }
+
+    @CheckForNull
     public String getHarnessConvertEndpoint() {
         return this.harnessConvertEndpoint;
     }
@@ -274,6 +305,26 @@ public class JenkinsOpenTelemetryPluginConfiguration extends GlobalConfiguration
     @DataBoundSetter
     public void setDirectory(String directory) {
         this.directory = directory;
+    }
+
+    @DataBoundSetter
+    public void setAPI_KEY(String API_KEY) {
+        this.API_KEY = API_KEY;
+    }
+
+    @DataBoundSetter
+    public void setAccountIdentifier(String accountIdentifier) {
+        this.accountIdentifier = accountIdentifier;
+    }
+    @DataBoundSetter
+
+    public void setOrgIdentifier(String orgIdentifier) {
+        this.orgIdentifier = orgIdentifier;
+    }
+
+    @DataBoundSetter
+    public void setProjectIdentifier(String projectIdentifier) {
+        this.projectIdentifier = projectIdentifier;
     }
 
     @DataBoundSetter

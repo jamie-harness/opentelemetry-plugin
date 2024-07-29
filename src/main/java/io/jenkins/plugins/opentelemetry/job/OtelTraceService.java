@@ -30,6 +30,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.sdk.trace.ReadableSpan;
+import io.opentelemetry.sdk.trace.data.SpanData;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -312,10 +313,13 @@ public class OtelTraceService {
         node.put("parent", run.getParent().getFullName());
         node.put("type", type);
         node.put("all-info", OtelUtils.toDebugString(span));
-        node.put("spanName", run.getDisplayName());
         node.put("spanId", span.getSpanContext().getSpanId());
         if (span instanceof ReadableSpan) {
             parentSpanId = ((ReadableSpan) span).toSpanData().getParentSpanId();
+            String spanName = ((ReadableSpan) span).toSpanData().getName();
+            node.put("spanName", spanName);
+        } else {
+            node.put("spanName", run.getDisplayName());
         }
         if(parentSpanId.equals(span.getSpanContext().getSpanId())) {
             node.put("parentSpanId", ROOT_ID);
@@ -323,12 +327,25 @@ public class OtelTraceService {
             node.put("parentSpanId", parentSpanId);
         }
         node.put("traceId", span.getSpanContext().getTraceId());
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode map = mapper.valueToTree(attributeMap);
-        node.put("attributesMap", map);
-        try {
-            node.put("parameterMap", mapper.readTree(attributeMap.get(AttributeKey.stringKey("harness-attribute")).toString()));
-        } catch (Exception ignored) {}
+        if (span instanceof ReadableSpan) {
+            ReadableSpan readableSpan = (ReadableSpan) span;
+            SpanData spanData = readableSpan.toSpanData();
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode map = mapper.valueToTree(spanData.getAttributes().asMap());
+            node.put("attributesMap", map);
+            try {
+                node.put("parameterMap", mapper.readTree(spanData.getAttributes().asMap().get(AttributeKey.stringKey("harness-attribute")).toString()));
+            } catch (Exception ignored) {
+            }
+           } else {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode map = mapper.valueToTree(attributeMap);
+            node.put("attributesMap", map);
+            try {
+                node.put("parameterMap", mapper.readTree(attributeMap.get(AttributeKey.stringKey("harness-attribute")).toString()));
+            } catch (Exception ignored) {
+            }
+        }
         return node;
     }
 }

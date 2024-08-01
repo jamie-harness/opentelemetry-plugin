@@ -1,36 +1,65 @@
-<?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project" >
-    <st:bind var="myAction" value="${it}"/>
-    <l:layout norefresh="true" title="Harness" >
-        <l:side-panel>
-            <st:include page="sidepanel.jelly" it="${app}" optional="true" />
-        </l:side-panel>
-        <l:main-panel>
-            <p>Trace folder: ${it.traceFolder}</p>
-<!--            <f:entry title="Harness Account ID" field="harnessAccount">-->
-<!--                <f:textbox default="9UuUfLwaQ-6ZowvbG7qtLQ"/>-->
-<!--            </f:entry>-->
-<!--            <f:entry title="Harness Org" field="harnessOrg">-->
-<!--                <f:textbox default="default"/>-->
-<!--            </f:entry>-->
-<!--            <f:entry title="Harness Project" field="harnessProject">-->
-<!--                <f:textbox default="anuragworkspace"/>-->
-<!--            </f:entry>-->
-<!--            <f:entry title="Harness API Token" field="harnessProject">-->
-<!--                <f:password/>-->
-<!--            </f:entry>-->
-            <script type="text/javascript">
-                var traceFolder = "${it.traceFolder}";
-            </script>
-            <script src="${rootURL}/plugin/harnessmigration/js/harnessInner.js"/>
-<!--            <button onclick="callJavaMethod()">Upgrade</button>-->
-<!--            <button onclick="callJavaMethod2()">Upgrade Java</button>-->
-<!--            <button onclick="callJavaMethod3()">Upgrade Java 3</button>-->
-<!--            <button onclick="getCallUpgrade3()" descriptor="${it.descriptor}">${it.callUpgrade}</button>-->
+<!--<?jelly escape-by-default='true'?>-->
+<!--<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project" >-->
+<!--    <st:bind var="myAction" value="${it}"/>-->
+<!--    <l:layout norefresh="true" title="Harness" >-->
+<!--        <l:side-panel>-->
+<!--            <st:include page="sidepanel.jelly" it="${app}" optional="true" />-->
+<!--        </l:side-panel>-->
+<!--        <l:main-panel>-->
+<!--            <p>Trace folder: ${it.traceFolder}</p>-->
+<!--&lt;!&ndash;            <f:entry title="Harness Account ID" field="harnessAccount">&ndash;&gt;-->
+<!--&lt;!&ndash;                <f:textbox default="9UuUfLwaQ-6ZowvbG7qtLQ"/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </f:entry>&ndash;&gt;-->
+<!--&lt;!&ndash;            <f:entry title="Harness Org" field="harnessOrg">&ndash;&gt;-->
+<!--&lt;!&ndash;                <f:textbox default="default"/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </f:entry>&ndash;&gt;-->
+<!--&lt;!&ndash;            <f:entry title="Harness Project" field="harnessProject">&ndash;&gt;-->
+<!--&lt;!&ndash;                <f:textbox default="anuragworkspace"/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </f:entry>&ndash;&gt;-->
+<!--&lt;!&ndash;            <f:entry title="Harness API Token" field="harnessProject">&ndash;&gt;-->
+<!--&lt;!&ndash;                <f:password/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </f:entry>&ndash;&gt;-->
+<!--            <script type="text/javascript">-->
+<!--                var traceFolder = "${it.traceFolder}";-->
+<!--            </script>-->
+<!--            <script src="${rootURL}/plugin/harnessmigration/js/harnessInner.js"/>-->
+<!--&lt;!&ndash;            <button onclick="callJavaMethod()">Upgrade</button>&ndash;&gt;-->
+<!--&lt;!&ndash;            <button onclick="callJavaMethod2()">Upgrade Java</button>&ndash;&gt;-->
+<!--&lt;!&ndash;            <button onclick="callJavaMethod3()">Upgrade Java 3</button>&ndash;&gt;-->
+<!--&lt;!&ndash;            <button onclick="getCallUpgrade3()" descriptor="${it.descriptor}">${it.callUpgrade}</button>&ndash;&gt;-->
 
-<!--            <f:validateButton-->
-<!--                title="${%Upgrade}" progress="${%Upgrading...}"-->
-<!--                method="migrateToHarness" with="harnessAccount,harnessProject" />-->
+<!--&lt;!&ndash;            <f:validateButton&ndash;&gt;-->
+<!--&lt;!&ndash;                title="${%Upgrade}" progress="${%Upgrading...}"&ndash;&gt;-->
+<!--&lt;!&ndash;                method="migrateToHarness" with="harnessAccount,harnessProject" />&ndash;&gt;-->
+<!--        </l:main-panel>-->
+<!--    </l:layout>-->
+<!--</j:jelly>-->
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <l:layout title="${%Select Pipelines for Trace Download}">
+        <l:main-panel>
+            <h1>${%Select Pipelines for Trace Download}</h1>
+            <form method="post" action="downloadTraces">
+                <j:set var="pipelines" value="${it.pipelines}" />
+                <j:choose>
+                    <j:when test="${!empty(pipelines)}">
+                        <f:entry title="${%Available Pipelines}">
+                            <div>
+                                <j:forEach var="pipeline" items="${pipelines}">
+                                    <f:checkbox name="selectedPipelines" value="${pipeline.fullName}" />
+                                    <label class="attach-previous">${pipeline.fullName}</label>
+                                    <br/>
+                                </j:forEach>
+                            </div>
+                        </f:entry>
+                        <f:entry>
+                            <f:submit value="${%Download Traces}" />
+                        </f:entry>
+                    </j:when>
+                    <j:otherwise>
+                        <p>${%No pipelines found. Make sure you have pipeline jobs configured in Jenkins.}</p>
+                    </j:otherwise>
+                </j:choose>
+            </form>
         </l:main-panel>
     </l:layout>
 </j:jelly>

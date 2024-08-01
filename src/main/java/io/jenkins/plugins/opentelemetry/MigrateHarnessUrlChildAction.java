@@ -8,6 +8,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import io.jenkins.plugins.opentelemetry.embeded.TraceProcessor;
+import io.jenkins.plugins.opentelemetry.embeded.HarnessConfig;
 
 import javax.servlet.ServletException;
 import java.io.*;
@@ -19,6 +20,24 @@ import java.util.zip.ZipOutputStream;
 import org.json.JSONObject;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+import org.json.JSONObject;
+import jenkins.model.Jenkins;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 
 @Extension
 public class MigrateHarnessUrlChildAction implements RootAction, Describable<MigrateHarnessUrlChildAction> {
@@ -26,6 +45,7 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
     private final ModelObject run;
     private final String traceFolder;
     private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(MigrateHarnessUrlChildAction.class.getName());
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
 
     public MigrateHarnessUrlChildAction() {
@@ -73,8 +93,12 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
     }
 
     public void doDownloadTraces(StaplerRequest req, StaplerResponse res) throws IOException, ServletException {
+        final Logger LOGGER = Logger.getLogger(this.getClass().getName());
+        LOGGER.info("Starting doDownloadTraces method");
+
         String[] selectedPipelines = req.getParameterValues("selectedPipelines");
         if (selectedPipelines == null || selectedPipelines.length == 0) {
+            LOGGER.warning("No pipelines selected");
             res.sendError(400, "No pipelines selected");
             return;
         }
@@ -83,56 +107,127 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
         List<String> selectedTraces = filterTracesByPipelines(allTraces, selectedPipelines);
 
         if (selectedTraces.isEmpty()) {
+            LOGGER.warning("No traces found for the selected pipelines");
             res.sendError(400, "No traces found for the selected pipelines");
             return;
         }
 
-        File tempFile = File.createTempFile("harness-traces", ".zip");
-        try (FileOutputStream fos = new FileOutputStream(tempFile);
-             ZipOutputStream zipOut = new ZipOutputStream(fos)) {
+        StringBuilder output = new StringBuilder();
+        output.append("Processing selected pipelines and sending to Harness.\n\n");
 
-            Set<String> addedFiles = new HashSet<>(); // To keep track of added files
+        for (String tracePath : selectedTraces) {
+            try {
+                LOGGER.info("Processing trace file: " + tracePath);
+                String content = new String(Files.readAllBytes(Paths.get(tracePath)));
+                JSONObject traceJson = new JSONObject(content);
 
-            for (String tracePath : selectedTraces) {
-                File fileToZip = new File(tracePath);
-                String fileName = fileToZip.getName();
+                // Directly access the name from the JSON
+                StringBuilder pipelineName = new StringBuilder(traceJson.getString("name"));
+                LOGGER.info("Processing pipeline: " + pipelineName);
 
-                // Check if the file has already been added
-                if (addedFiles.contains(fileName)) {
-                    // If it's a duplicate, create a unique name
-                    String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-                    String extension = fileName.substring(fileName.lastIndexOf('.'));
-                    int counter = 1;
-                    while (addedFiles.contains(fileName)) {
-                        fileName = baseName + "_" + counter + extension;
-                        counter++;
-                    }
-                }
+                output.append("Processing pipeline: ").append(pipelineName).append("\n");
 
-                addedFiles.add(fileName);
+                String uploadResult = TraceProcessor.uploadFile(tracePath);
+                LOGGER.info("Pipeline generated successfully for: " + pipelineName);
+                output.append("Pipeline generated successfully.\n");
 
-                try (FileInputStream fis = new FileInputStream(fileToZip)) {
-                    ZipEntry zipEntry = new ZipEntry(fileName);
-                    zipOut.putNextEntry(zipEntry);
+                String harnessResponse = sendPipelineToHarness(uploadResult, output);
+                output.append("Pipeline name: ").append(pipelineName).append("\n");
+                LOGGER.info("Pipeline sent to Harness. Response: " + harnessResponse);
+                output.append("Pipeline sent to Harness. Response: ").append(harnessResponse).append("\n\n");
 
-                    byte[] bytes = new byte[1024];
-                    int length;
-                    while ((length = fis.read(bytes)) >= 0) {
-                        zipOut.write(bytes, 0, length);
-                    }
-                }
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Error processing pipeline", e);
+                output.append("Error processing pipeline: ").append(e.getMessage()).append("\n");
             }
         }
 
-        try (FileInputStream fileStream = new FileInputStream(tempFile)) {
-            res.setContentType("application/zip");
-            res.setHeader("Content-Disposition", "attachment; filename=\"harness-traces.zip\"");
-            res.serveFile(req, fileStream, tempFile.lastModified(), tempFile.length(), "harness-traces.zip");
-        } finally {
-            tempFile.delete();
-        }
+        // Generate HTML output
+        String htmlOutput = generateHtmlOutput(output.toString());
+
+        res.setContentType("text/html;charset=UTF-8");
+        res.getWriter().write(htmlOutput);
+        LOGGER.info("doDownloadTraces method completed successfully");
     }
 
+    private String sendPipelineToHarness(String generatedPipeline, StringBuilder output) throws Exception {
+        LOGGER.info("Sending pipeline to Harness");
+        HttpClient httpClient = HttpClient.newBuilder().build();
+        Map<String, String> params = HarnessConfig.getParams();
+
+        String query = params.entrySet().stream()
+            .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+            .collect(Collectors.joining("&"));
+
+        String host = "https://app.harness.io";
+        String pathname = "/pipeline/api/pipelines";
+        String fullUrl = host + pathname + '?' + query;
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .POST(HttpRequest.BodyPublishers.ofString(generatedPipeline))
+            .uri(URI.create(fullUrl))
+            .header("Content-Type", "application/json")
+            .header("x-api-key", HarnessConfig.getApiKey())
+            .build();
+
+        output.append("Sending pipeline to Harness.\n");
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // Pretty-print the response body if it's JSON
+        String responseBody = response.body();
+        try {
+            JsonNode jsonResponse = objectMapper.readTree(responseBody);
+            responseBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonResponse);
+        } catch (IOException e) {
+            // If response body is not valid JSON, keep it as is
+        }
+
+        return "Status Code: " + response.statusCode() + "\nBody: " + responseBody;
+    }
+
+    private String generateHtmlOutput(String summary) {
+        return "<!DOCTYPE html>\n" +
+            "<html lang=\"en\">\n" +
+            "<head>\n" +
+            "    <meta charset=\"UTF-8\">\n" +
+            "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+            "    <title>Pipeline Migration Results</title>\n" +
+            "    <style>\n" +
+            "        body {\n" +
+            "            font-family: Arial, sans-serif;\n" +
+            "            line-height: 1.6;\n" +
+            "            color: #333;\n" +
+            "            max-width: 800px;\n" +
+            "            margin: 0 auto;\n" +
+            "            padding: 20px;\n" +
+            "        }\n" +
+            "        h1 {\n" +
+            "            color: #2c3e50;\n" +
+            "        }\n" +
+            "        pre {\n" +
+            "            white-space: pre-wrap;\n" +
+            "            word-wrap: break-word;\n" +
+            "            background-color: #f8f9fa;\n" +
+            "            padding: 15px;\n" +
+            "            border-radius: 5px;\n" +
+            "        }\n" +
+            "    </style>\n" +
+            "</head>\n" +
+            "<body>\n" +
+            "    <h1>Pipeline Migration Results</h1>\n" +
+            "    <pre>" + escapeHtml(summary) + "</pre>\n" +
+            "</body>\n" +
+            "</html>";
+    }
+
+    private String escapeHtml(String unsafe) {
+        return unsafe
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#039;");
+    }
 
     private Map<String, String> getUniquePipelines() throws IOException {
         List<String> allTraces = TraceProcessor.convertTraceToJson();

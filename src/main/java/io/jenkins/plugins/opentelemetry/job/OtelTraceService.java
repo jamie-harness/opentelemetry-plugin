@@ -5,6 +5,7 @@
 
 package io.jenkins.plugins.opentelemetry.job;
 
+import com.dynatrace.agent.introspection.span.opentelemetry.DynatraceCompositeSpan;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -169,6 +170,33 @@ public class OtelTraceService {
         return ancestors;
     }
 
+    private Span getParentSpan(@NonNull Run run, @NonNull final FlowNode flowNode) {
+        FlowNode startNode;
+        if (flowNode instanceof StepEndNode) {
+            startNode = ((StepEndNode) flowNode).getStartNode();
+        } else {
+            startNode = flowNode;
+        }
+        List<FlowNode> parents = new ArrayList<>(startNode.getParents());
+        LOGGER.log(Level.FINE, () -> "PARENTS " + parents);
+        LOGGER.log(Level.FINE, () -> "PARENTS2 " + flowNode.getParents());
+        if (parents.size() > 0) {
+            FlowNode currentFlowNode = parents.get(0);
+            return getSpan(run, currentFlowNode);
+
+//            currentFlowNode.getActions(FlowNodeMonitoringAction.class))
+//            Optional<Span> span = ImmutableList.copyOf(currentFlowNode.getActions(FlowNodeMonitoringAction.class))
+//                .reverse() // from last to first
+//                .stream()
+//                .filter(Predicate.not(FlowNodeMonitoringAction::hasEnded)) // only the non ended spans
+//                .findFirst().map(FlowNodeMonitoringAction::getSpan);
+//            if (span.isPresent()) {
+//                return span.get();
+//            }
+        }
+        return null;
+    }
+
     public void removePipelineStepSpan(@NonNull WorkflowRun run, @NonNull FlowNode flowNode, @NonNull Span span) {
         FlowNode startSpanNode;
         if (flowNode instanceof AtomNode) {
@@ -245,7 +273,7 @@ public class OtelTraceService {
     public void putSpan(@NonNull Run run, @NonNull Span span) {
         try {
             run.addAction(new MonitoringAction(span));
-            LOGGER.log(Level.FINE, () -> "putSpan(" + run.getFullDisplayName() + "," + OtelUtils.toDebugString(span) + ")");
+            LOGGER.log(Level.FINE, () -> "putRootSpan(" + run.getFullDisplayName() + "," + OtelUtils.toDebugString(span) + ")");
             ObjectNode node = JsonNodeFactory.instance.objectNode();
             node.put("name", run.getFullDisplayName());
             node.put("parentSpanId", ROOT_ID);
@@ -278,7 +306,14 @@ public class OtelTraceService {
             LOGGER.log(Level.FINE, () -> "putSpan(" + run.getFullDisplayName() + ", " +
                 OtelUtils.toDebugString(flowNode) + ", " + OtelUtils.toDebugString(span) + ")");
 
-            JsonNode node = compileInfoTOJson(run, span, attributeMap, parentSpanId, "Run Phase Span");
+           Span parentSpan = getParentSpan(run, flowNode);
+            LOGGER.log(Level.FINE, () -> "parentSpan" + OtelUtils.toDebugString(parentSpan));
+           if (parentSpan != null) {
+               parentSpanId = parentSpan.getSpanContext().getSpanId();
+               String finalParentSpanId = parentSpanId;
+               LOGGER.log(Level.FINE, () -> "parentSpan ID" + finalParentSpanId);
+           }
+            JsonNode node = compileInfoTOJson(run, span, attributeMap, parentSpanId, "Run Span");
             writeToFile(node.toPrettyString(), span.getSpanContext().getTraceId()+ "-" + span.getSpanContext().getSpanId());
         } catch (Exception e) {
             LOGGER.log(Level.FINE,"err", e);
@@ -308,27 +343,47 @@ public class OtelTraceService {
     }
 
     private ObjectNode compileInfoTOJson(Run run, Span span, Map<Object, Object> attributeMap, String parentSpanId, String type) {
+        Span readSpan = span;
+        if (span instanceof DynatraceCompositeSpan) {
+            String dtID = ((DynatraceCompositeSpan) span).getDynatraceSpan().getSpanContext().getSpanId();
+            String clazz = ((DynatraceCompositeSpan) span).getDynatraceSpan().getClass().toString();
+            String dtSpan = ((DynatraceCompositeSpan) span).getDynatraceSpan().toString();
+            LOGGER.log(Level.FINE, () -> "DT ID " + dtID);
+            LOGGER.log(Level.FINE, () -> "DT Class " + clazz);
+            LOGGER.log(Level.FINE, () -> "DT String " + dtSpan);
+            readSpan = ((DynatraceCompositeSpan) readSpan).getOtelSpan();
+        }
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("name", run.getFullDisplayName());
         node.put("parent", run.getParent().getFullName());
         node.put("type", type);
-        node.put("all-info", OtelUtils.toDebugString(span));
-        node.put("spanId", span.getSpanContext().getSpanId());
-        if (span instanceof ReadableSpan) {
-            parentSpanId = ((ReadableSpan) span).toSpanData().getParentSpanId();
-            String spanName = ((ReadableSpan) span).toSpanData().getName();
+        node.put("all-info", OtelUtils.toDebugString(readSpan));
+        node.put("spanId", readSpan.getSpanContext().getSpanId());
+        if (readSpan instanceof ReadableSpan) {
+            Span finalSpan = readSpan;
+            LOGGER.log(Level.FINE, () -> "READABLE " + ((ReadableSpan) finalSpan).toSpanData().toString());
+            String parentReadSpanId = ((ReadableSpan) readSpan).toSpanData().getParentSpanId();
+            String finalParentSpanId = parentReadSpanId;
+            LOGGER.log(Level.FINE, () -> "READABLE PARENT " + finalParentSpanId.toString());
+            String spanName = ((ReadableSpan) readSpan).toSpanData().getName();
             node.put("spanName", spanName);
+            if(ROOT_ID.equals(parentReadSpanId)) {
+                node.put("parentSpanId", parentSpanId);
+            } else {
+                node.put("parentSpanId", parentReadSpanId);
+            };
         } else {
+            Span finalSpan = readSpan;
+            LOGGER.log(Level.FINE, () -> "UNREADABLE " + finalSpan);
             node.put("spanName", run.getDisplayName());
+            if(parentSpanId.equals(readSpan.getSpanContext().getSpanId())) {
+                node.put("parentSpanId", ROOT_ID);
+            }
         }
-        if(parentSpanId.equals(span.getSpanContext().getSpanId())) {
-            node.put("parentSpanId", ROOT_ID);
-        } else {
-            node.put("parentSpanId", parentSpanId);
-        }
-        node.put("traceId", span.getSpanContext().getTraceId());
-        if (span instanceof ReadableSpan) {
-            ReadableSpan readableSpan = (ReadableSpan) span;
+
+        node.put("traceId", readSpan.getSpanContext().getTraceId());
+        if (readSpan instanceof ReadableSpan) {
+            ReadableSpan readableSpan = (ReadableSpan) readSpan;
             SpanData spanData = readableSpan.toSpanData();
             ObjectMapper mapper = new ObjectMapper();
             JsonNode map = mapper.valueToTree(spanData.getAttributes().asMap());
@@ -337,7 +392,7 @@ public class OtelTraceService {
                 node.put("parameterMap", mapper.readTree(spanData.getAttributes().asMap().get(AttributeKey.stringKey("harness-attribute")).toString()));
             } catch (Exception ignored) {
             }
-           } else {
+       } else {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode map = mapper.valueToTree(attributeMap);
             node.put("attributesMap", map);

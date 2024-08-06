@@ -92,9 +92,61 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
             .collect(Collectors.toList());
     }
 
-    public void doDownloadTraces(StaplerRequest req, StaplerResponse res) throws IOException, ServletException {
+    public void doDownloadLatestTraces(StaplerRequest req, StaplerResponse res) throws Exception {
+        LOGGER.info("Starting doDownloadLatestTraces method");
+
+        String[] selectedPipelines = req.getParameterValues("selectedPipelines");
+        if (selectedPipelines == null || selectedPipelines.length == 0) {
+            LOGGER.warning("No pipelines selected");
+            res.sendError(400, "No pipelines selected");
+            return;
+        }
+
+        List<String> allTraces = TraceProcessor.convertTraceToJson();
+        List<String> selectedTraces = filterTracesByPipelines(allTraces, selectedPipelines);
+
+        if (selectedTraces.isEmpty()) {
+            LOGGER.warning("No traces found for the selected pipelines");
+            res.sendError(400, "No traces found for the selected pipelines");
+            return;
+        }
+
+        // Create a zip file containing the selected traces
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+            for (String tracePath : selectedTraces) {
+                File traceFile = new File(tracePath);
+                String content = new String(Files.readAllBytes(traceFile.toPath()), StandardCharsets.UTF_8);
+                JSONObject traceJson = new JSONObject(content);
+
+                String name = traceJson.optString("name", "unknown");
+                name = name.replaceAll("[^a-zA-Z0-9.-]", "_"); // Replace invalid characters
+                name = name.replaceAll("#", ""); // Remove # symbol
+                String fileName = name + ".json";
+
+                ZipEntry entry = new ZipEntry(fileName);
+                zos.putNextEntry(entry);
+                zos.write(content.getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+
+                LOGGER.info("Added trace to zip: " + fileName);
+            }
+        }
+
+        // Set response headers
+        res.setContentType("application/zip");
+        res.setHeader("Content-Disposition", "attachment; filename=\"latest_traces.zip\"");
+
+        // Write the zip file to the response
+        res.getOutputStream().write(baos.toByteArray());
+        res.getOutputStream().flush();
+
+        LOGGER.info("doDownloadLatestTraces method completed successfully");
+    }
+
+    public void doSendHarness(StaplerRequest req, StaplerResponse res) throws IOException, ServletException {
         final Logger LOGGER = Logger.getLogger(this.getClass().getName());
-        LOGGER.info("Starting doDownloadTraces method");
+        LOGGER.info("Starting doSendHarness method");
 
         String[] selectedPipelines = req.getParameterValues("selectedPipelines");
         if (selectedPipelines == null || selectedPipelines.length == 0) {
@@ -147,7 +199,7 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
 
         res.setContentType("text/html;charset=UTF-8");
         res.getWriter().write(htmlOutput);
-        LOGGER.info("doDownloadTraces method completed successfully");
+        LOGGER.info("doSendHarness method completed successfully");
     }
 
     private String sendPipelineToHarness(String generatedPipeline, StringBuilder output) throws Exception {

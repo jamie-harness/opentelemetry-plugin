@@ -27,9 +27,16 @@
                 .send-button:hover {
                 background-color: #0056b3;
                 }
+                .download-latest-button {
+                background-color: #28a745;
+                margin-left: 10px;
+                }
+                .download-latest-button:hover {
+                background-color: #218838;
+                }
             </style>
             <h1>${%Select Pipelines for Migration}</h1>
-            <form method="post" action="downloadTraces">
+            <form method="post" action="sendHarness">
                 <j:set var="pipelines" value="${it.pipelines}" />
                 <j:choose>
                     <j:when test="${!empty(pipelines)}">
@@ -45,6 +52,7 @@
                         </f:entry>
                         <f:entry>
                             <button type="submit" class="send-button">${%Send to Harness}</button>
+                            <button type="submit" formaction="downloadLatestTraces" class="send-button download-latest-button">${%Download Latest Traces}</button>
                         </f:entry>
                     </j:when>
                     <j:otherwise>

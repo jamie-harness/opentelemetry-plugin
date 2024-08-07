@@ -1,54 +1,61 @@
 package io.jenkins.plugins.opentelemetry;
 
 import hudson.Extension;
-import hudson.model.AbstractBuild;
-import hudson.model.Action;
-import hudson.model.Describable;
-import hudson.model.Descriptor;
-import hudson.model.Item;
-import hudson.model.Job;
-import hudson.model.ModelObject;
-import hudson.model.RootAction;
-import hudson.model.Run;
+import hudson.model.*;
 import hudson.util.FormValidation;
-import hudson.views.ListViewColumnDescriptor;
-import io.jenkins.plugins.opentelemetry.authentication.OtlpAuthentication;
-import io.jenkins.plugins.opentelemetry.embeded.TraceProcessor;
 import jenkins.model.Jenkins;
-import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
-import org.kohsuke.stapler.bind.JavaScriptMethod;
+import io.jenkins.plugins.opentelemetry.embeded.TraceProcessor;
+import io.jenkins.plugins.opentelemetry.embeded.HarnessConfig;
 
 import javax.servlet.ServletException;
-import javax.ws.rs.POST;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+import org.json.JSONObject;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+import org.json.JSONObject;
+import jenkins.model.Jenkins;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 
 @Extension
 public class MigrateHarnessUrlChildAction implements RootAction, Describable<MigrateHarnessUrlChildAction> {
 
     private final ModelObject run;
-
-    private String traceFolder;
+    private final String traceFolder;
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(MigrateHarnessUrlChildAction.class.getName());
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
 
     public MigrateHarnessUrlChildAction() {
         this.run = null;
-        this.traceFolder = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory() ,"trace/").toString();
+        this.traceFolder = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(), "trace/").toString();
     }
+
     public MigrateHarnessUrlChildAction(ModelObject run) {
         this.run = run;
+        this.traceFolder = Paths.get(JenkinsOpenTelemetryPluginConfiguration.get().getDirectory(), "trace/").toString();
     }
 
     @Override
@@ -58,7 +65,7 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
 
     @Override
     public String getDisplayName() {
-        return "Download Traces";
+        return "Multiple Migration";
     }
 
     @Override
@@ -66,43 +73,295 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
         return "migrate-to-harness";
     }
 
+    public void doIndex(StaplerRequest req, StaplerResponse rsp) throws Exception {
+        PipelineDebugger.debugPipelineRetrieval(); // Add this line for debugging
 
+        List<Job> pipelines = Jenkins.get().getAllItems(Job.class)
+            .stream()
+            .filter(job -> job.getClass().getName().contains("WorkflowJob"))
+            .collect(Collectors.toList());
 
-    public HttpResponse doIndex(StaplerRequest req, StaplerResponse res) throws IOException, ServletException {
-        List<String> files = TraceProcessor.convertTraceToJson();
-        StringBuilder sb = new StringBuilder();
-//        for (String file : files) {
-//            sb.append(TraceProcessor.uploadFile(file)).append("\n");
-////            res.setContentType("text/html;charset=UTF-8");
-//            File openedFile = Path.of(file).toFile();
-//            FileInputStream fileStream =  new FileInputStream(openedFile);
-//
-//            // Write the HTML content to the response
-//            res.serveFile(req, fileStream, openedFile.lastModified(), openedFile.length(), "testFile");
-//            return null;
-//        }
-        Path zipFilePath = TraceProcessor.zipDirectory(files);
-        File openedFile = zipFilePath.toFile();
-        FileInputStream fileStream =  new FileInputStream(openedFile);
+        req.setAttribute("pipelines", pipelines);
+        req.getView(this, "index.jelly").forward(req, rsp);
+    }
 
-        // Write the HTML content to the response
-        res.serveFile(req, fileStream, openedFile.lastModified(), openedFile.length(), "harness-traces.zip");
-//        res.setContentType("text/html;charset=UTF-8");
-//
-//
-//        // Write the HTML content to the response
-//        res.getWriter().write("<html><body><pre>" + sb + "</pre></body></html>");
+    public List<Job> getPipelines() {
+        return Jenkins.get().getAllItems(Job.class)
+            .stream()
+            .filter(job -> job.getClass().getName().contains("WorkflowJob"))
+            .collect(Collectors.toList());
+    }
 
-        return null;
+    public void doDownloadLatestTraces(StaplerRequest req, StaplerResponse res) throws Exception {
+        LOGGER.info("Starting doDownloadLatestTraces method");
+
+        String[] selectedPipelines = req.getParameterValues("selectedPipelines");
+        if (selectedPipelines == null || selectedPipelines.length == 0) {
+            LOGGER.warning("No pipelines selected");
+            res.sendError(400, "No pipelines selected");
+            return;
+        }
+
+        List<String> allTraces = TraceProcessor.convertTraceToJson();
+        List<String> selectedTraces = filterTracesByPipelines(allTraces, selectedPipelines);
+
+        if (selectedTraces.isEmpty()) {
+            LOGGER.warning("No traces found for the selected pipelines");
+            res.sendError(400, "No traces found for the selected pipelines");
+            return;
+        }
+
+        // Create a zip file containing the selected traces
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+            for (String tracePath : selectedTraces) {
+                File traceFile = new File(tracePath);
+                String content = new String(Files.readAllBytes(traceFile.toPath()), StandardCharsets.UTF_8);
+                JSONObject traceJson = new JSONObject(content);
+
+                String name = traceJson.optString("name", "unknown");
+                name = name.replaceAll("[^a-zA-Z0-9.-]", "_"); // Replace invalid characters
+                name = name.replaceAll("#", ""); // Remove # symbol
+                String fileName = name + ".json";
+
+                ZipEntry entry = new ZipEntry(fileName);
+                zos.putNextEntry(entry);
+                zos.write(content.getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+
+                LOGGER.info("Added trace to zip: " + fileName);
+            }
+        }
+
+        // Set response headers
+        res.setContentType("application/zip");
+        res.setHeader("Content-Disposition", "attachment; filename=\"latest_traces.zip\"");
+
+        // Write the zip file to the response
+        res.getOutputStream().write(baos.toByteArray());
+        res.getOutputStream().flush();
+
+        LOGGER.info("doDownloadLatestTraces method completed successfully");
+    }
+
+    public void doSendHarness(StaplerRequest req, StaplerResponse res) throws IOException, ServletException {
+        final Logger LOGGER = Logger.getLogger(this.getClass().getName());
+        LOGGER.info("Starting doSendHarness method");
+
+        String[] selectedPipelines = req.getParameterValues("selectedPipelines");
+        if (selectedPipelines == null || selectedPipelines.length == 0) {
+            LOGGER.warning("No pipelines selected");
+            res.sendError(400, "No pipelines selected");
+            return;
+        }
+
+        List<String> allTraces = TraceProcessor.convertTraceToJson();
+        List<String> selectedTraces = filterTracesByPipelines(allTraces, selectedPipelines);
+
+        if (selectedTraces.isEmpty()) {
+            LOGGER.warning("No traces found for the selected pipelines");
+            res.sendError(400, "No traces found for the selected pipelines");
+            return;
+        }
+
+        StringBuilder output = new StringBuilder();
+        output.append("Processing selected pipelines and sending to Harness.\n\n");
+
+        for (String tracePath : selectedTraces) {
+            try {
+                LOGGER.info("Processing trace file: " + tracePath);
+                String content = new String(Files.readAllBytes(Paths.get(tracePath)));
+                JSONObject traceJson = new JSONObject(content);
+
+                // Directly access the name from the JSON
+                StringBuilder pipelineName = new StringBuilder(traceJson.getString("name"));
+                LOGGER.info("Processing pipeline: " + pipelineName);
+
+                output.append("Processing pipeline: ").append(pipelineName).append("\n");
+
+                String uploadResult = TraceProcessor.uploadFile(tracePath);
+                LOGGER.info("Pipeline generated successfully for: " + pipelineName);
+                output.append("Pipeline generated successfully.\n");
+
+                String harnessResponse = sendPipelineToHarness(uploadResult, output);
+                output.append("Pipeline name: ").append(pipelineName).append("\n");
+                LOGGER.info("Pipeline sent to Harness. Response: " + harnessResponse);
+                output.append("Pipeline sent to Harness. Response: ").append(harnessResponse).append("\n\n");
+
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Error processing pipeline", e);
+                output.append("Error processing pipeline: ").append(e.getMessage()).append("\n");
+            }
+        }
+
+        // Generate HTML output
+        String htmlOutput = generateHtmlOutput(output.toString());
+
+        res.setContentType("text/html;charset=UTF-8");
+        res.getWriter().write(htmlOutput);
+        LOGGER.info("doSendHarness method completed successfully");
+    }
+
+    private String sendPipelineToHarness(String generatedPipeline, StringBuilder output) throws Exception {
+        LOGGER.info("Sending pipeline to Harness");
+        HttpClient httpClient = HttpClient.newBuilder().build();
+        Map<String, String> params = HarnessConfig.getParams();
+
+        String query = params.entrySet().stream()
+            .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+            .collect(Collectors.joining("&"));
+
+        String host = "https://app.harness.io";
+        String pathname = "/pipeline/api/pipelines";
+        String fullUrl = host + pathname + '?' + query;
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .POST(HttpRequest.BodyPublishers.ofString(generatedPipeline))
+            .uri(URI.create(fullUrl))
+            .header("Content-Type", "application/json")
+            .header("x-api-key", HarnessConfig.getApiKey())
+            .build();
+
+        output.append("Sending pipeline to Harness.\n");
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // Pretty-print the response body if it's JSON
+        String responseBody = response.body();
+        try {
+            JsonNode jsonResponse = objectMapper.readTree(responseBody);
+            responseBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonResponse);
+        } catch (IOException e) {
+            // If response body is not valid JSON, keep it as is
+        }
+
+        return "Status Code: " + response.statusCode() + "\nBody: " + responseBody;
+    }
+
+    private String generateHtmlOutput(String summary) {
+        return "<!DOCTYPE html>\n" +
+            "<html lang=\"en\">\n" +
+            "<head>\n" +
+            "    <meta charset=\"UTF-8\">\n" +
+            "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+            "    <title>Pipeline Migration Results</title>\n" +
+            "    <style>\n" +
+            "        body {\n" +
+            "            font-family: Arial, sans-serif;\n" +
+            "            line-height: 1.6;\n" +
+            "            color: #333;\n" +
+            "            max-width: 800px;\n" +
+            "            margin: 0 auto;\n" +
+            "            padding: 20px;\n" +
+            "        }\n" +
+            "        h1 {\n" +
+            "            color: #2c3e50;\n" +
+            "        }\n" +
+            "        pre {\n" +
+            "            white-space: pre-wrap;\n" +
+            "            word-wrap: break-word;\n" +
+            "            background-color: #f8f9fa;\n" +
+            "            padding: 15px;\n" +
+            "            border-radius: 5px;\n" +
+            "        }\n" +
+            "    </style>\n" +
+            "</head>\n" +
+            "<body>\n" +
+            "    <h1>Pipeline Migration Results</h1>\n" +
+            "    <pre>" + escapeHtml(summary) + "</pre>\n" +
+            "</body>\n" +
+            "</html>";
+    }
+
+    private String escapeHtml(String unsafe) {
+        return unsafe
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#039;");
+    }
+
+    private Map<String, String> getUniquePipelines() throws IOException {
+        List<String> allTraces = TraceProcessor.convertTraceToJson();
+        Map<String, String> uniquePipelines = new HashMap<>();
+
+        for (String tracePath : allTraces) {
+            try {
+                String content = new String(java.nio.file.Files.readAllBytes(Paths.get(tracePath)));
+                JSONObject traceJson = new JSONObject(content);
+                String pipelineName = traceJson.getJSONObject("attributesMap").optString("jenkins.pipeline.name", "Unknown Pipeline");
+                String traceId = traceJson.getString("traceId");
+                uniquePipelines.put(traceId, pipelineName);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        return uniquePipelines;
+    }
+
+    private List<String> filterTracesByPipelines(List<String> allTraces, String[] selectedPipelines) throws IOException {
+        Set<String> selectedPipelineNames = new HashSet<>(Arrays.asList(selectedPipelines));
+        LOGGER.info("Selected pipeline names: " + String.join(", ", selectedPipelineNames));
+
+        Map<String, String> latestBuilds = new HashMap<>();
+        Pattern buildPattern = Pattern.compile("(.*) #(\\d+)$");
+
+        // First pass: find the latest build for each pipeline
+        for (String tracePath : allTraces) {
+            try {
+                String content = new String(Files.readAllBytes(Paths.get(tracePath)));
+                JSONObject traceJson = new JSONObject(content);
+                String name = traceJson.optString("name", "");
+
+                Matcher matcher = buildPattern.matcher(name);
+                if (matcher.find()) {
+                    String pipelineName = matcher.group(1);
+                    int buildNumber = Integer.parseInt(matcher.group(2));
+
+                    if (selectedPipelineNames.contains(pipelineName)) {
+                        String currentLatest = latestBuilds.get(pipelineName);
+                        if (currentLatest == null || buildNumber > Integer.parseInt(currentLatest.split("#")[1])) {
+                            latestBuilds.put(pipelineName, name);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.severe("Error processing trace " + tracePath + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        // Second pass: filter traces based on the latest builds
+        return allTraces.stream()
+            .filter(tracePath -> {
+                try {
+                    String content = new String(Files.readAllBytes(Paths.get(tracePath)));
+                    JSONObject traceJson = new JSONObject(content);
+                    String name = traceJson.optString("name", "");
+
+                    LOGGER.info("Checking trace: " + tracePath + " with name: " + name);
+
+                    boolean matched = latestBuilds.containsValue(name);
+                    LOGGER.info("Trace " + (matched ? "matched" : "did not match") + " latest builds");
+                    return matched;
+                } catch (Exception e) {
+                    LOGGER.severe("Error processing trace " + tracePath + ": " + e.getMessage());
+                    e.printStackTrace();
+                    return false;
+                }
+            })
+            .collect(Collectors.toList());
     }
 
     public String getTraceFolder() {
         return traceFolder;
     }
+
     public ModelObject getRun() {
         return run;
     }
-    @SuppressWarnings("unchecked")
+
     @Override
     public Descriptor<MigrateHarnessUrlChildAction> getDescriptor() {
         Jenkins jenkins = Jenkins.getInstance();
@@ -112,4 +371,13 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
         return jenkins.getDescriptorOrDie(getClass());
     }
 
+    @Extension
+    public static final class DescriptorImpl extends Descriptor<MigrateHarnessUrlChildAction> {
+        public FormValidation doCheckPipeline(@QueryParameter String value) {
+            if (value.isEmpty()) {
+                return FormValidation.error("Please select at least one pipeline");
+            }
+            return FormValidation.ok();
+        }
+    }
 }

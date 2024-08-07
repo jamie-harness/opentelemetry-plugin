@@ -1,36 +1,65 @@
-<?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project" >
-    <st:bind var="myAction" value="${it}"/>
-    <l:layout norefresh="true" title="Harness" >
-        <l:side-panel>
-            <st:include page="sidepanel.jelly" it="${app}" optional="true" />
-        </l:side-panel>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <l:layout title="${%Select Pipelines for Migration}">
         <l:main-panel>
-            <p>Trace folder: ${it.traceFolder}</p>
-<!--            <f:entry title="Harness Account ID" field="harnessAccount">-->
-<!--                <f:textbox default="9UuUfLwaQ-6ZowvbG7qtLQ"/>-->
-<!--            </f:entry>-->
-<!--            <f:entry title="Harness Org" field="harnessOrg">-->
-<!--                <f:textbox default="default"/>-->
-<!--            </f:entry>-->
-<!--            <f:entry title="Harness Project" field="harnessProject">-->
-<!--                <f:textbox default="anuragworkspace"/>-->
-<!--            </f:entry>-->
-<!--            <f:entry title="Harness API Token" field="harnessProject">-->
-<!--                <f:password/>-->
-<!--            </f:entry>-->
-            <script type="text/javascript">
-                var traceFolder = "${it.traceFolder}";
-            </script>
-            <script src="${rootURL}/plugin/harnessmigration/js/harnessInner.js"/>
-<!--            <button onclick="callJavaMethod()">Upgrade</button>-->
-<!--            <button onclick="callJavaMethod2()">Upgrade Java</button>-->
-<!--            <button onclick="callJavaMethod3()">Upgrade Java 3</button>-->
-<!--            <button onclick="getCallUpgrade3()" descriptor="${it.descriptor}">${it.callUpgrade}</button>-->
-
-<!--            <f:validateButton-->
-<!--                title="${%Upgrade}" progress="${%Upgrading...}"-->
-<!--                method="migrateToHarness" with="harnessAccount,harnessProject" />-->
+            <style>
+                .pipeline-selection-container {
+                margin: 20px 0;
+                }
+                .pipeline-checkbox {
+                display: flex;
+                align-items: center;
+                margin: 5px 0;
+                }
+                .pipeline-label {
+                margin-left: 10px;
+                font-size: 16px;
+                }
+                .send-button {
+                margin-top: 20px;
+                padding: 10px 20px;
+                font-size: 16px;
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                }
+                .send-button:hover {
+                background-color: #0056b3;
+                }
+                .download-latest-button {
+                background-color: #28a745;
+                margin-left: 10px;
+                }
+                .download-latest-button:hover {
+                background-color: #218838;
+                }
+            </style>
+            <h1>${%Select Pipelines for Migration}</h1>
+            <form method="post" action="sendHarness">
+                <j:set var="pipelines" value="${it.pipelines}" />
+                <j:choose>
+                    <j:when test="${!empty(pipelines)}">
+                        <f:entry title="${%Available Pipelines}">
+                            <div class="pipeline-selection-container">
+                                <j:forEach var="pipeline" items="${pipelines}">
+                                    <div class="pipeline-checkbox">
+                                        <f:checkbox name="selectedPipelines" value="${pipeline.fullName}" />
+                                        <label class="pipeline-label">${pipeline.fullName}</label>
+                                    </div>
+                                </j:forEach>
+                            </div>
+                        </f:entry>
+                        <f:entry>
+                            <button type="submit" class="send-button">${%Send to Harness}</button>
+                            <button type="submit" formaction="downloadLatestTraces" class="send-button download-latest-button">${%Download Latest Traces}</button>
+                        </f:entry>
+                    </j:when>
+                    <j:otherwise>
+                        <p>${%No pipelines found. Make sure you have pipeline jobs configured in Jenkins.}</p>
+                    </j:otherwise>
+                </j:choose>
+            </form>
         </l:main-panel>
     </l:layout>
 </j:jelly>

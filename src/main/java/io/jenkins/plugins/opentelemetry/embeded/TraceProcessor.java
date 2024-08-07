@@ -13,9 +13,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -97,12 +95,20 @@ public class TraceProcessor {
 
     public static String uploadFile(String filePath) {
         String uploadUrl = JenkinsOpenTelemetryPluginConfiguration.get().getHarnessConvertEndpoint();
+        StringBuilder result = new StringBuilder();
+//        result.append("Attempting to upload file: ").append(filePath).append("\n");
+//        result.append("Upload URL: ").append(uploadUrl).append("\n");
+
         try {
             CloseableHttpClient httpClient = HttpClients.createDefault();
             HttpPost uploadFile = new HttpPost(uploadUrl);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
 
             File f = new File(filePath);
+            if (!f.exists()) {
+                return "Error: File does not exist: " + filePath;
+            }
+
             builder.addBinaryBody(
                 "jenkinsjsonfile",
                 new FileInputStream(f),
@@ -112,14 +118,27 @@ public class TraceProcessor {
 
             HttpEntity multipart = builder.build();
             uploadFile.setEntity(multipart);
+
+//            result.append("Executing HTTP request...\n");
             CloseableHttpResponse response = httpClient.execute(uploadFile);
+//            result.append("TraceProcessor Response status: ").append(response.getStatusLine()).append("\n");
+
             HttpEntity responseEntity = response.getEntity();
-            return  EntityUtils.toString(responseEntity, "UTF-8");
+            String responseBody = EntityUtils.toString(responseEntity, "UTF-8");
+            result.append(responseBody);
 
+            return result.toString();
         } catch (Exception e) {
-            return "Something Went Wrong\n" + e + "\n" + uploadUrl;
-        }
+            result.append("Error occurred during file upload:\n");
+            result.append(e.getClass().getName()).append(": ").append(e.getMessage()).append("\n");
 
+            // Add stack trace for debugging
+            StringWriter sw = new StringWriter();
+            e.printStackTrace(new PrintWriter(sw));
+//            result.append("Stack trace:\n").append(sw.toString());
+
+            return result.toString();
+        }
     }
 
 

@@ -58,4 +58,10 @@ local.pid
 
 .env
 
-
+#API-KEY
+#src/
+#src/main/
+#src/main/java/
+#src/main/java/io.jenkins.plugins.opentelemetry/
+#src/main/java/io.jenkins.plugins.opentelemetry/embeded/
+#src/main/java/io.jenkins.plugins.opentelemetry/embeded/HarnessConfig.java

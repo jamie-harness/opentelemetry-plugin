@@ -113,20 +113,35 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
 
         // Create a zip file containing the selected traces
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Set<String> addedFileNames = new HashSet<>();
+
+        String harnessVersion = getHarnessVersionFromPom();
+        LOGGER.info("Harness version fetched for traces: " + harnessVersion);
+
         try (ZipOutputStream zos = new ZipOutputStream(baos)) {
             for (String tracePath : selectedTraces) {
                 File traceFile = new File(tracePath);
                 String content = new String(Files.readAllBytes(traceFile.toPath()), StandardCharsets.UTF_8);
                 JSONObject traceJson = new JSONObject(content);
 
+                traceJson.put("harnessVersion", harnessVersion);
+                LOGGER.info("Added Harness version to trace JSON: " + traceJson.optString("harnessVersion"));
+
                 String name = traceJson.optString("name", "unknown");
                 name = name.replaceAll("[^a-zA-Z0-9.-]", "_"); // Replace invalid characters
                 name = name.replaceAll("#", ""); // Remove # symbol
                 String fileName = name + ".json";
 
+                if (addedFileNames.contains(fileName)) {
+                    LOGGER.info("Skipping duplicate file: " + fileName);
+                    continue;
+                }
+                addedFileNames.add(fileName);
+
                 ZipEntry entry = new ZipEntry(fileName);
                 zos.putNextEntry(entry);
-                zos.write(content.getBytes(StandardCharsets.UTF_8));
+                String formattedJson = traceJson.toString(2);
+                zos.write(formattedJson.getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
 
                 LOGGER.info("Added trace to zip: " + fileName);
@@ -142,6 +157,37 @@ public class MigrateHarnessUrlChildAction implements RootAction, Describable<Mig
         res.getOutputStream().flush();
 
         LOGGER.info("doDownloadLatestTraces method completed successfully");
+    }
+
+    private String getHarnessVersionFromPom() {
+        LOGGER.info("Starting to fetch Harness version from pom.xml");
+        try {
+            Jenkins jenkins = Jenkins.get();
+            Path pomPath = Paths.get(jenkins.getRootDir().getPath(), "plugins", "harnessmigration", "META-INF", "maven", "io.jenkins.plugins", "harnessmigration", "pom.xml");
+            LOGGER.info("Attempting to read pom.xml from: " + pomPath);
+
+            String pomContent = new String(Files.readAllBytes(pomPath));
+            LOGGER.info("Successfully read pom.xml content. First 500 characters: " + pomContent.substring(0, Math.min(pomContent.length(), 1000)));
+
+            Pattern versionPattern = Pattern.compile("<version>(.*?)</version>");
+
+            Matcher  versionMatcher = versionPattern.matcher(pomContent);
+
+            String version = "";
+
+            if (versionMatcher.find()) {
+                version = versionMatcher.group(1);
+                LOGGER.info("Found version: " + version);
+            } else {
+                LOGGER.warning("Version tag not found in pom.xml");
+            }
+
+            LOGGER.info("Fetched Harness version: " + version);
+            return version;
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Error reading pom.xml", e);
+            return "unknown";
+        }
     }
 
     public void doSendHarness(StaplerRequest req, StaplerResponse res) throws IOException, ServletException {

@@ -1,4 +1,5 @@
 #!/bin/bash
+#ONLY FOR MANUAL BUILDING ON LOCAL MACHINE
 
 # Change to the directory of the script
 cd "$HOME/opentelemetry-plugin-dm" || { echo "Failed to navigate to repository directory"; exit 1; }

@@ -89,8 +89,12 @@ public class OpenTelemetryConfigurationTest {
     }
 
     private static void testOpenTelemetryExportersConfiguration(String expectedTracesExporter, String expectedMetricsExporter, String expectedLogsExporter, String otlpEndpoint, Map<String, String> configurationProperties) {
-        OpenTelemetryConfiguration configuration = new OpenTelemetryConfiguration(of(""),
+        OpenTelemetryConfiguration configuration = new OpenTelemetryConfiguration(Optional.of(""),
             Optional.ofNullable(otlpEndpoint),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
             Optional.empty(),
             Optional.empty(),
             Optional.empty(),
